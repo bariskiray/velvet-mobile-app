@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:valet_mobile_app/views/home/home_screen_view.dart';
+import 'package:valet_mobile_app/views/main_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -16,7 +16,7 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       debugShowCheckedModeBanner: false,
-      home: const HomeView(), 
+      home: const MainScreen(),
     );
   }
 }
