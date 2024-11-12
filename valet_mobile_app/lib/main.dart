@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:valet_mobile_app/views/main_screen.dart';
+import 'package:get/get.dart';
+import 'package:valet_mobile_app/views/valet/valet_login/view/valet_login_view.dart';
 
 void main() {
   runApp(const MyApp());
@@ -10,13 +11,13 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return GetMaterialApp(
       title: 'Valet App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
       ),
       debugShowCheckedModeBanner: false,
-      home: const MainScreen(),
+      home: const ValetLoginView(),
     );
   }
 }

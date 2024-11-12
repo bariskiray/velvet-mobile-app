@@ -3,7 +3,7 @@ import 'package:valet_mobile_app/components/custom_password_field.dart';
 import 'package:valet_mobile_app/components/custom_text_field.dart';
 import 'package:valet_mobile_app/components/error_message.dart';
 import 'package:valet_mobile_app/views/business/business_login/business_login_view.dart';
-import 'package:valet_mobile_app/views/valet/valet_login/valet_login_view.dart';
+import 'package:valet_mobile_app/views/valet/valet_login/view/valet_login_view.dart';
 
 class BusinessRegisterView extends StatefulWidget {
   const BusinessRegisterView({Key? key}) : super(key: key);
@@ -42,20 +42,23 @@ class _BusinessRegisterViewState extends State<BusinessRegisterView> {
               const SizedBox(height: 20.0),
               CustomTextField(
                 controller: _businessNameController,
-                label: 'Business Name',
-                icon: Icons.business,
+                labelText: 'Business Name',
+                hintText: 'Enter your business name',
+                keyboardType: TextInputType.text,
               ),
               const SizedBox(height: 20.0),
               CustomTextField(
                 controller: _emailController,
-                label: 'Email',
-                icon: Icons.email,
+                labelText: 'Email',
+                hintText: 'Enter your email',
+                keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 20.0),
               CustomTextField(
                 controller: _phoneNumberController,
-                label: 'Phone Number',
-                icon: Icons.phone,
+                labelText: 'Phone Number',
+                hintText: 'Enter your phone number',
+                keyboardType: TextInputType.phone,
               ),
               const SizedBox(height: 20.0),
               CustomPasswordField(
@@ -64,7 +67,9 @@ class _BusinessRegisterViewState extends State<BusinessRegisterView> {
               ),
               const SizedBox(height: 20.0),
               ElevatedButton(
-                onPressed: () {},
+                onPressed: () {
+                  //Register işlemi burada yapılacak
+                },
                 style: ElevatedButton.styleFrom(
                   foregroundColor: Colors.blue[900],
                   backgroundColor: Colors.white,

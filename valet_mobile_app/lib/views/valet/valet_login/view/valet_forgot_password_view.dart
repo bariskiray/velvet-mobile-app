@@ -1,17 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:valet_mobile_app/views/valet/valet_login/valet_login_view.dart';
+import 'package:get/get.dart';
+import 'package:valet_mobile_app/views/valet/valet_login/controller/valet_forgot_password_controller.dart';
 
-class ForgotPasswordView extends StatefulWidget {
-  const ForgotPasswordView({Key? key}) : super(key: key);
-
-  @override
-  _ForgotPasswordViewState createState() => _ForgotPasswordViewState();
-}
-
-class _ForgotPasswordViewState extends State<ForgotPasswordView> {
-  final TextEditingController _emailController = TextEditingController();
-  String _errorMessage = '';
-  bool _isSendingResetCode = false;
+class ValetForgotPasswordView extends GetView<ValetForgotPasswordController> {
+  const ValetForgotPasswordView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -35,7 +27,7 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
               ),
               const SizedBox(height: 30.0),
               TextFormField(
-                controller: _emailController,
+                controller: controller.emailController,
                 decoration: InputDecoration(
                   labelText: 'Email',
                   labelStyle: const TextStyle(color: Colors.white),
@@ -56,47 +48,38 @@ class _ForgotPasswordViewState extends State<ForgotPasswordView> {
                 style: const TextStyle(color: Colors.white),
                 keyboardType: TextInputType.emailAddress,
                 cursorColor: Colors.white,
-                validator: (value) {
-                  if (value == null || value.isEmpty) {
-                    return 'Please enter your email';
-                  }
-                  if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                    return 'Please enter a valid email';
-                  }
-                  return null;
-                },
               ),
               const SizedBox(height: 20.0),
-              ElevatedButton(
-                onPressed: null,
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15.0),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(10.0),
-                  ),
-                  backgroundColor: Colors.white,
-                ),
-                child: Text(
-                  _isSendingResetCode ? 'Sending...' : 'Send Reset Code',
-                  style: TextStyle(fontSize: 18.0, color: Colors.blue[900]),
-                ),
-              ),
-              if (_errorMessage.isNotEmpty) ...[
-                const SizedBox(height: 20.0),
-                Text(
-                  _errorMessage,
-                  textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.red),
-                ),
-              ],
+              Obx(() => ElevatedButton(
+                    onPressed: controller.isLoading.value ? null : controller.sendResetCode,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(vertical: 15.0),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10.0),
+                      ),
+                      backgroundColor: Colors.white,
+                    ),
+                    child: Text(
+                      controller.isLoading.value ? 'Sending...' : 'Send Reset Code',
+                      style: TextStyle(
+                        fontSize: 18.0,
+                        color: Colors.blue[900],
+                      ),
+                    ),
+                  )),
+              Obx(() => controller.errorMessage.isNotEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.only(top: 20.0),
+                      child: Text(
+                        controller.errorMessage.value,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(color: Colors.red),
+                      ),
+                    )
+                  : const SizedBox.shrink()),
               const SizedBox(height: 20.0),
               TextButton(
-                onPressed: () {
-                  Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (context) => const LoginView()),
-                  );
-                },
+                onPressed: () => Get.back(),
                 style: TextButton.styleFrom(foregroundColor: Colors.white),
                 child: const Text("Back To Login"),
               ),

@@ -42,8 +42,9 @@ class _BusinessForgotPasswordViewState extends State<BusinessForgotPasswordView>
               const SizedBox(height: 10.0),
               CustomTextField(
                 controller: _emailController,
-                label: 'Email',
-                icon: Icons.email,
+                labelText: 'Email',
+                hintText: 'Enter your email',
+                keyboardType: TextInputType.emailAddress,
               ),
               const SizedBox(height: 20.0),
               ElevatedButton(

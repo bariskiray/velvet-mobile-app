@@ -1,13 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
+import 'package:get/get_core/src/get_main.dart';
+import 'package:valet_mobile_app/views/valet/valet_complete_ticket/valet_complete_ticket_controller.dart';
+import 'package:valet_mobile_app/views/valet/valet_complete_ticket/valet_complete_ticket_view.dart';
+import 'package:valet_mobile_app/views/valet/valet_create_ticket/controller/valet_create_ticket_controller.dart';
+import 'package:valet_mobile_app/views/valet/valet_create_ticket/view/valet_create_ticket_view.dart';
 
-class HomeView extends StatefulWidget {
-  const HomeView({super.key});
+class ValetHomeView extends StatefulWidget {
+  const ValetHomeView({super.key});
 
   @override
-  State<HomeView> createState() => _HomeViewState();
+  State<ValetHomeView> createState() => _ValetHomeViewState();
 }
 
-class _HomeViewState extends State<HomeView> {
+class _ValetHomeViewState extends State<ValetHomeView> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -16,7 +22,57 @@ class _HomeViewState extends State<HomeView> {
         title: const Text('Valet App', style: TextStyle(color: Color(0xFFFDFDFD), fontWeight: FontWeight.w600)),
         backgroundColor: Colors.blue[900],
       ),
-      body: const Center(child: Text('')),
+      body: Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Get.put(ValetCreateTicketController()); // Controller'ı initialize et
+                    Get.to(() => const ValetCreateTicketView());
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.blue[900],
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  ),
+                  child: const Text(
+                    'Create Ticket',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    Get.put(ValetCompleteTicketController());
+                    Get.to(() => const ValetCompleteTicketView());
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green[700],
+                    padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  ),
+                  child: const Text(
+                    'Complete Ticket',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 18,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
     );
   }
 }
