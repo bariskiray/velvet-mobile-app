@@ -1,6 +1,6 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
-import '../../valet_home/valet_home_screen_view.dart';
+import '../../../../auth/auth_controller.dart';
 
 class ValetLoginController extends GetxController {
   // Text editing controllers
@@ -18,24 +18,10 @@ class ValetLoginController extends GetxController {
     try {
       isLoading.value = true;
 
-      // Login işlemleri burada yapılacak
-      // Örnek:
-      // await authService.login(
-      //   email: usernameController.text,
-      //   password: passwordController.text,
-      // );
-
-      // Başarılı login sonrası ana sayfaya yönlendir
-      Get.off(() => const ValetHomeView());
+      // AuthController üzerinden login işlemi
+      await AuthController.to.login(usernameController.text, passwordController.text, 'valet');
     } catch (e) {
       errorMessage.value = 'Login failed: ${e.toString()}';
-      Get.snackbar(
-        'Error',
-        errorMessage.value,
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
     } finally {
       isLoading.value = false;
     }
@@ -55,11 +41,6 @@ class ValetLoginController extends GetxController {
 
     if (passwordController.text.isEmpty) {
       errorMessage.value = 'Password is required';
-      return false;
-    }
-
-    if (passwordController.text.length < 6) {
-      errorMessage.value = 'Password must be at least 6 characters';
       return false;
     }
 

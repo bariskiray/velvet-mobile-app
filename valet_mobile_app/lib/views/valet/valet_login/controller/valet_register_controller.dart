@@ -21,7 +21,7 @@ class ValetRegisterController extends GetxController {
       isLoading.value = true;
 
       // AuthController üzerinden register işlemi
-      await AuthController.to.register(
+      await AuthController.to.registerValet(
         email: emailController.text,
         password: passwordController.text,
         firstName: firstnameController.text,

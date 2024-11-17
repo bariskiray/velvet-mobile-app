@@ -1,8 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:valet_mobile_app/auth/auth_controller.dart';
+import 'package:valet_mobile_app/api_service/api_service.dart';
 import 'package:valet_mobile_app/views/valet/valet_login/view/valet_login_view.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // Initialize controllers
+  Get.put(AuthController()); // AuthController'ı initialize et
+
+  // Initialize API Service
+  ApiService.initializeInterceptors();
+
   runApp(const MyApp());
 }
 
