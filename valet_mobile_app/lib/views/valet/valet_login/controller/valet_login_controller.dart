@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import '../../../../auth/auth_controller.dart';
+import '../../../../auth/auth_models.dart';
 
 class ValetLoginController extends GetxController {
   // Text editing controllers
@@ -17,11 +18,27 @@ class ValetLoginController extends GetxController {
 
     try {
       isLoading.value = true;
+      errorMessage.value = '';
+
+      // Login request modeli oluştur
+      final loginRequest = LoginRequest(
+        email: usernameController.text.trim(),
+        password: passwordController.text,
+        userType: 'valet',
+      );
 
       // AuthController üzerinden login işlemi
-      await AuthController.to.login(usernameController.text, passwordController.text, 'valet');
+      await AuthController.to.login(
+        loginRequest.email,
+        loginRequest.password,
+        loginRequest.userType,
+      );
+
+      // Başarılı login sonrası
+      _clearForm();
     } catch (e) {
       errorMessage.value = 'Login failed: ${e.toString()}';
+      debugPrint('Login error: $e');
     } finally {
       isLoading.value = false;
     }
@@ -29,23 +46,37 @@ class ValetLoginController extends GetxController {
 
   // Form validasyonu
   bool validateForm() {
-    if (usernameController.text.isEmpty) {
+    final email = usernameController.text.trim();
+    final password = passwordController.text;
+
+    if (email.isEmpty) {
       errorMessage.value = 'Email is required';
       return false;
     }
 
-    if (!GetUtils.isEmail(usernameController.text)) {
+    if (!GetUtils.isEmail(email)) {
       errorMessage.value = 'Please enter a valid email';
       return false;
     }
 
-    if (passwordController.text.isEmpty) {
+    if (password.isEmpty) {
       errorMessage.value = 'Password is required';
       return false;
     }
 
-    errorMessage.value = '';
+    if (password.length < 6) {
+      errorMessage.value = 'Password must be at least 6 characters';
+      return false;
+    }
+
     return true;
+  }
+
+  // Form temizleme
+  void _clearForm() {
+    usernameController.clear();
+    passwordController.clear();
+    errorMessage.value = '';
   }
 
   @override

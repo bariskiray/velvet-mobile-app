@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:valet_mobile_app/components/custom_password_field.dart';
 import 'package:valet_mobile_app/components/custom_text_field.dart';
 import 'package:valet_mobile_app/components/error_message.dart';
-import 'package:valet_mobile_app/views/business/business_login/business_register_view.dart';
+import 'package:valet_mobile_app/views/business/business_login/controller/business_login_controller.dart';
+import 'package:valet_mobile_app/views/business/business_login/view/business_register_view.dart';
 
 class BusinessLoginView extends StatefulWidget {
   const BusinessLoginView({Key? key}) : super(key: key);
@@ -12,9 +13,66 @@ class BusinessLoginView extends StatefulWidget {
 }
 
 class _BusinessLoginViewState extends State<BusinessLoginView> {
+  final BusinessLoginController _controller = BusinessLoginController();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   String _errorMessage = '';
+  bool _isLoading = false;
+
+  Future<void> _login() async {
+    if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
+      setState(() {
+        _errorMessage = 'Lütfen tüm alanları doldurun';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _errorMessage = '';
+    });
+
+    try {
+      final result = await _controller.login(
+        email: _emailController.text,
+        password: _passwordController.text,
+      );
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        if (result['success']) {
+          // AuthController otomatik olarak yönlendirme yapacak
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Giriş başarılı'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          setState(() {
+            _errorMessage = result['message'];
+          });
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _errorMessage = 'Bir hata oluştu: $e';
+        });
+      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -55,9 +113,7 @@ class _BusinessLoginViewState extends State<BusinessLoginView> {
               ),
               const SizedBox(height: 20.0),
               ElevatedButton(
-                onPressed: () {
-                  // Giriş işlemi burada yapılacak
-                },
+                onPressed: _login,
                 style: ElevatedButton.styleFrom(
                   foregroundColor: Colors.blue[900],
                   backgroundColor: Colors.white,
@@ -66,7 +122,7 @@ class _BusinessLoginViewState extends State<BusinessLoginView> {
                     borderRadius: BorderRadius.circular(10.0),
                   ),
                 ),
-                child: const Text('Login', style: TextStyle(fontSize: 18.0)),
+                child: _isLoading ? const CircularProgressIndicator() : const Text('Login', style: TextStyle(fontSize: 18.0)),
               ),
               const SizedBox(height: 10.0),
               TextButton(

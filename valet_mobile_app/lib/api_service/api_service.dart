@@ -1,32 +1,38 @@
 import 'package:dio/dio.dart' as dio;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:valet_mobile_app/views/business/business_login/model/business_register_request.dart';
 import '../auth/auth_controller.dart';
 import '../auth/auth_models.dart';
+import 'dart:convert';
 
 class ApiService {
-  static final _dio = dio.Dio(dio.BaseOptions(
-    baseUrl: 'http://localhost:8000/', // Backend URL'i - değiştirilecek
-    connectTimeout: const Duration(seconds: 5),
-    receiveTimeout: const Duration(seconds: 3),
-    contentType: 'application/json',
-    validateStatus: (status) => status! < 500,
-  ));
+  static late dio.Dio _dio;
 
-  // Initialize Dio interceptors
   static void initializeInterceptors() {
+    _dio = dio.Dio(dio.BaseOptions(
+      baseUrl: 'http://127.0.0.1:8000',
+      headers: {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+      },
+    ));
+
     _dio.interceptors.add(dio.InterceptorsWrapper(
       onRequest: (options, handler) {
-        debugPrint('REQUEST[${options.method}] => PATH: ${options.path}');
+        print('REQUEST[${options.method}] => PATH: ${options.path}');
+        print('REQUEST HEADERS: ${options.headers}');
         return handler.next(options);
       },
       onResponse: (response, handler) {
-        debugPrint('RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
+        print('RESPONSE[${response.statusCode}] => PATH: ${response.requestOptions.path}');
+        print('RESPONSE DATA: ${response.data}');
         return handler.next(response);
       },
-      onError: (dio.DioException e, handler) {
-        debugPrint('ERROR[${e.response?.statusCode}] => PATH: ${e.requestOptions.path}');
-        return handler.next(e);
+      onError: (error, handler) {
+        print('ERROR[${error.response?.statusCode}] => PATH: ${error.requestOptions.path}');
+        print('ERROR DATA: ${error.response?.data}');
+        return handler.next(error);
       },
     ));
   }
@@ -95,28 +101,21 @@ class ApiService {
   // Auth endpoints
   static Future<dio.Response> login(LoginRequest request) async {
     try {
-      return await _dio.post(
-        'api/${request.userType}s/login',
+      String basicAuth = 'Basic ' + base64Encode(utf8.encode('${request.email}:${request.password}'));
+
+      final response = await _dio.post(
+        '/api/businesses/login',
         options: dio.Options(
           headers: {
-            'Authorization': 'Basic ${AuthController.to.getAuthHeader(request.email, request.password)}',
-            'Content-Type': 'application/json',
+            'Authorization': basicAuth,
           },
         ),
       );
-    } catch (e) {
-      handleError(e);
-      rethrow;
-    }
-  }
 
-  static Future<dio.Response> verifyToken(String userType) async {
-    try {
-      return await _dio.get(
-        'api/${userType}s/verify',
-        options: dio.Options(headers: AuthController.to.authHeaders),
-      );
+      print('Raw API Response: ${response.data}');
+      return response;
     } catch (e) {
+      print('API Error: $e');
       handleError(e);
       rethrow;
     }

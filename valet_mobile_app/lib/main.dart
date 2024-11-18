@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:valet_mobile_app/auth/auth_controller.dart';
 import 'package:valet_mobile_app/api_service/api_service.dart';
-import 'package:valet_mobile_app/views/valet/valet_login/view/valet_login_view.dart';
+import 'package:valet_mobile_app/views/business/business_home/business_home_screen_view.dart';
+import 'package:valet_mobile_app/views/business/business_login/view/business_login_view.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -27,7 +28,11 @@ class MyApp extends StatelessWidget {
         primarySwatch: Colors.blue,
       ),
       debugShowCheckedModeBanner: false,
-      home: const ValetLoginView(),
+      initialRoute: '/login',
+      getPages: [
+        GetPage(name: '/login', page: () => const BusinessLoginView()),
+        GetPage(name: '/home', page: () => const BusinessHome()),
+      ],
     );
   }
 }

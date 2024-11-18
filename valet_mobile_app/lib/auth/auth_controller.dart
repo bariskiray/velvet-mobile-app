@@ -52,18 +52,22 @@ class AuthController extends GetxController {
       );
 
       final response = await ApiService.login(loginRequest);
-      final loginResponse = LoginResponse.fromJson(response.data);
 
-      final authHeader = getAuthHeader(email, password);
-      await _saveAuthData(authHeader, loginResponse.user.toJson(), userType);
+      if (response.statusCode == 200) {
+        final basicAuth = 'Basic ' + base64Encode(utf8.encode('$email:$password'));
 
-      _credentials.value = authHeader;
-      currentUser.value = loginResponse.user;
-      isLoggedIn.value = true;
+        await _saveAuthData(basicAuth, response.data, userType);
 
-      Get.offAllNamed('/home');
+        _credentials.value = basicAuth;
+        currentUser.value = UserData.fromJson(response.data);
+        isLoggedIn.value = true;
+
+        Get.offAllNamed('/home');
+      } else {
+        throw Exception('Giriş başarısız');
+      }
     } catch (e) {
-      ApiService.handleError(e);
+      print('Login Error Detail: $e');
       rethrow;
     } finally {
       isLoading.value = false;
@@ -93,49 +97,17 @@ class AuthController extends GetxController {
       final prefs = await SharedPreferences.getInstance();
       final savedCredentials = prefs.getString(CREDENTIALS_KEY);
       final userType = prefs.getString(USER_TYPE_KEY);
+      final userData = prefs.getString(USER_KEY);
 
-      if (savedCredentials != null && userType != null) {
-        final userData = prefs.getString(USER_KEY);
-        if (userData != null) {
-          final response = await ApiService.verifyToken(userType);
-
-          if (response.statusCode == 200) {
-            currentUser.value = UserData.fromJson(jsonDecode(userData));
-            _credentials.value = savedCredentials;
-            isLoggedIn.value = true;
-          } else {
-            await logout();
-          }
-        }
+      if (savedCredentials != null && userType != null && userData != null) {
+        _credentials.value = savedCredentials;
+        currentUser.value = UserData.fromJson(jsonDecode(userData));
+        isLoggedIn.value = true;
+        Get.offAllNamed('/home');
       }
     } catch (e) {
       debugPrint('Auth check error: $e');
       await logout();
-    }
-  }
-
-  // Register business
-  Future<void> registerBusiness({
-    required String email,
-    required String password,
-    required String businessName,
-  }) async {
-    try {
-      isLoading.value = true;
-
-      final request = BusinessRegisterRequest(
-        email: email,
-        password: password,
-        businessName: businessName,
-      );
-
-      await ApiService.registerBusiness(request);
-      Get.offAllNamed('/login');
-    } catch (e) {
-      ApiService.handleError(e);
-      rethrow;
-    } finally {
-      isLoading.value = false;
     }
   }
 

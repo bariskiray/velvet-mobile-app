@@ -1,6 +1,7 @@
-import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import 'package:get/get.dart';
 import '../../../../auth/auth_controller.dart';
+import '../view/valet_login_view.dart';
 
 class ValetRegisterController extends GetxController {
   // Text editing controllers
@@ -20,12 +21,20 @@ class ValetRegisterController extends GetxController {
     try {
       isLoading.value = true;
 
-      // AuthController üzerinden register işlemi
       await AuthController.to.registerValet(
         email: emailController.text,
         password: passwordController.text,
         firstName: firstnameController.text,
         lastName: lastnameController.text,
+      );
+
+      Get.off(() => ValetLoginView());
+      Get.snackbar(
+        'Success',
+        'Registration successful! Please login.',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
       );
     } catch (e) {
       errorMessage.value = 'Registration failed: ${e.toString()}';
@@ -64,6 +73,8 @@ class ValetRegisterController extends GetxController {
     errorMessage.value = '';
     return true;
   }
+
+  void goToLogin() => Get.off(() => ValetLoginView());
 
   @override
   void onClose() {

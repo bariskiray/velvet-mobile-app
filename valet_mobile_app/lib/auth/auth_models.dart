@@ -19,37 +19,22 @@ class LoginRequest {
 
 // Login response model
 class LoginResponse {
-  final String message;
   final UserData user;
+  final String token;
 
   LoginResponse({
-    required this.message,
     required this.user,
+    required this.token,
   });
 
-  factory LoginResponse.fromJson(Map<String, dynamic> json) => LoginResponse(
-        message: json['message'] ?? '',
-        user: UserData.fromJson(json['user']),
-      );
-}
+  factory LoginResponse.fromJson(Map<String, dynamic> json) {
+    print('API Response: $json'); // Debug için
 
-// Business register request model
-class BusinessRegisterRequest {
-  final String email;
-  final String password;
-  final String businessName;
-
-  BusinessRegisterRequest({
-    required this.email,
-    required this.password,
-    required this.businessName,
-  });
-
-  Map<String, dynamic> toJson() => {
-        'email': email,
-        'password': password,
-        'business_name': businessName,
-      };
+    return LoginResponse(
+      user: UserData.fromJson(json['data'] ?? {}), // data içinden user bilgilerini al
+      token: json['token'] ?? '',
+    );
+  }
 }
 
 // Valet register request model
@@ -76,41 +61,37 @@ class ValetRegisterRequest {
 
 // User data model
 class UserData {
-  final int id;
+  final String? id;
   final String email;
-  final String role;
-  final String? businessName; // Business için
-  final String? firstName; // Valet için
-  final String? lastName; // Valet için
-  final String? valetCode; // Valet için
+  final String? businessName;
+  final String? phoneNumber;
+  final String? userType;
 
   UserData({
-    required this.id,
+    this.id,
     required this.email,
-    required this.role,
     this.businessName,
-    this.firstName,
-    this.lastName,
-    this.valetCode,
+    this.phoneNumber,
+    this.userType,
   });
 
-  factory UserData.fromJson(Map<String, dynamic> json) => UserData(
-        id: json['id'],
-        email: json['email'],
-        role: json['role'],
-        businessName: json['business_name'],
-        firstName: json['first_name'],
-        lastName: json['last_name'],
-        valetCode: json['valet_code'],
-      );
+  factory UserData.fromJson(Map<String, dynamic> json) {
+    return UserData(
+      id: json['id']?.toString(),
+      email: json['email'] ?? '',
+      businessName: json['business_name'],
+      phoneNumber: json['phone_number'],
+      userType: json['user_type'],
+    );
+  }
 
-  Map<String, dynamic> toJson() => {
-        'id': id,
-        'email': email,
-        'role': role,
-        if (businessName != null) 'business_name': businessName,
-        if (firstName != null) 'first_name': firstName,
-        if (lastName != null) 'last_name': lastName,
-        if (valetCode != null) 'valet_code': valetCode,
-      };
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'email': email,
+      'business_name': businessName,
+      'phone_number': phoneNumber,
+      'user_type': userType,
+    };
+  }
 }
