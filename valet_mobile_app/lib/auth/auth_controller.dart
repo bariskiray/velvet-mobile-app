@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:valet_mobile_app/views/business/business_home/business_home_screen_view.dart';
 import 'dart:convert';
 import '../api_service/api_service.dart';
 import '../auth/auth_models.dart';
@@ -8,155 +9,163 @@ import '../auth/auth_models.dart';
 class AuthController extends GetxController {
   static AuthController get to => Get.find();
 
-  // Observable variables
   final isLoading = false.obs;
   final isLoggedIn = false.obs;
-  final currentUser = Rxn<UserData>();
+  final currentUser = Rxn<BusinessUser>();
   final _credentials = RxnString();
 
-  // SharedPreferences keys
   static const String CREDENTIALS_KEY = 'auth_credentials';
   static const String USER_KEY = 'user_data';
-  static const String USER_TYPE_KEY = 'user_type';
 
-  @override
-  void onInit() {
-    super.onInit();
-    checkAuthStatus();
-  }
-
-  // Base64 encoded credentials oluştur
-  String getAuthHeader(String email, String password) {
-    final credentials = '$email:$password';
-    return base64Encode(utf8.encode(credentials));
-  }
-
-  // HTTP Header oluştur
-  Map<String, String> get authHeaders {
-    if (_credentials.value == null) return {};
-    return {
-      'Authorization': 'Basic ${_credentials.value}',
-      'Content-Type': 'application/json',
-    };
-  }
-
-  // Login işlemi
-  Future<void> login(String email, String password, String userType) async {
+  Future<Map<String, dynamic>> login(String email, String password) async {
     try {
       isLoading.value = true;
 
       final loginRequest = LoginRequest(
         email: email,
         password: password,
-        userType: userType,
       );
 
       final response = await ApiService.login(loginRequest);
 
       if (response.statusCode == 200) {
-        final basicAuth = 'Basic ' + base64Encode(utf8.encode('$email:$password'));
+        // Basic Auth string'ini oluştur
+        final credentials = 'Basic ' + base64Encode(utf8.encode('$email:$password'));
 
-        await _saveAuthData(basicAuth, response.data, userType);
+        // Basit bir business user oluştur
+        final businessUser = BusinessUser(
+          email: email,
+          credentials: credentials,
+          businessName: email.split('@')[0],
+          phoneNumber: '',
+        );
 
-        _credentials.value = basicAuth;
-        currentUser.value = UserData.fromJson(response.data);
+        // SharedPreferences kullanarak user'ı kaydet
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('business_credentials', credentials); // Credentials'ı kaydet
+        await prefs.setString('business_user', jsonEncode(businessUser.toJson()));
+
+        currentUser.value = businessUser;
         isLoggedIn.value = true;
 
-        Get.offAllNamed('/home');
-      } else {
-        throw Exception('Giriş başarısız');
+        return {'success': true, 'message': 'Giriş başarılı'};
       }
+
+      return {'success': false, 'message': 'Giriş başarısız'};
     } catch (e) {
-      print('Login Error Detail: $e');
-      rethrow;
+      print('Login Error: $e');
+      return {'success': false, 'message': e.toString()};
     } finally {
       isLoading.value = false;
     }
   }
 
-  // Auth verilerini kaydet
-  Future<void> _saveAuthData(
-    String credentials,
-    Map<String, dynamic> userData,
-    String userType,
-  ) async {
+  Future<void> _saveAuthData({
+    required String credentials,
+    required Map<String, dynamic> userData,
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+
     try {
-      final prefs = await SharedPreferences.getInstance();
+      // Save data
       await prefs.setString(CREDENTIALS_KEY, credentials);
       await prefs.setString(USER_KEY, jsonEncode(userData));
-      await prefs.setString(USER_TYPE_KEY, userType);
+
+      // Verify save
+      final savedCred = prefs.getString(CREDENTIALS_KEY);
+      final savedUser = prefs.getString(USER_KEY);
+
+      if (savedCred == null || savedUser == null) {
+        throw Exception('Failed to verify saved data');
+      }
+
+      print('Auth data saved and verified');
     } catch (e) {
-      debugPrint('Save auth data error: $e');
-      rethrow;
+      print('Save auth data error: $e');
+      throw Exception('Failed to save auth data: $e');
     }
   }
 
-  // Auth durumunu kontrol et
+  @override
+  void onInit() {
+    super.onInit();
+    ever(isLoggedIn, (bool logged) async {
+      try {
+        if (logged) {
+          await Get.offAllNamed('/home')?.catchError((error) {
+            print('Navigation error: $error');
+            // Hata durumunda alternatif route
+            Get.offAll(() => const BusinessHome());
+          });
+        } else {
+          await Get.offAllNamed('/login')?.catchError((error) {
+            print('Navigation error: $error');
+            // Hata durumunda alternatif route
+            Get.offAll(() => const BusinessHome());
+          });
+        }
+      } catch (e) {
+        print('Route error: $e');
+      }
+    });
+    checkAuthStatus();
+  }
+
   Future<void> checkAuthStatus() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final savedCredentials = prefs.getString(CREDENTIALS_KEY);
-      final userType = prefs.getString(USER_TYPE_KEY);
-      final userData = prefs.getString(USER_KEY);
+      final savedUserData = prefs.getString(USER_KEY);
 
-      if (savedCredentials != null && userType != null && userData != null) {
-        _credentials.value = savedCredentials;
-        currentUser.value = UserData.fromJson(jsonDecode(userData));
-        isLoggedIn.value = true;
-        Get.offAllNamed('/home');
+      print('Saved Credentials: $savedCredentials'); // Debug
+      print('Saved User Data: $savedUserData'); // Debug
+
+      if (savedCredentials != null && savedUserData != null) {
+        try {
+          _credentials.value = savedCredentials;
+          final userData = jsonDecode(savedUserData) as Map<String, dynamic>;
+
+          // fromJson metodunu güvenli bir şekilde kullan
+          currentUser.value = BusinessUser(
+            email: userData['email'] ?? '',
+            credentials: userData['credentials'] ?? '',
+            businessName: userData['business_name'] ?? '',
+            phoneNumber: userData['phone_number'] ?? '',
+          );
+
+          isLoggedIn.value = true;
+        } catch (e) {
+          print('User data parse error: $e');
+          await logout(); // Hatalı veri varsa logout yap
+        }
+      } else {
+        print('No saved credentials or user data found');
+        isLoggedIn.value = false;
       }
     } catch (e) {
-      debugPrint('Auth check error: $e');
+      print('Auth check error: $e');
       await logout();
     }
   }
 
-  // Register valet (requires business auth)
-  Future<void> registerValet({
-    required String email,
-    required String password,
-    required String firstName,
-    required String lastName,
-  }) async {
-    try {
-      isLoading.value = true;
-
-      final request = ValetRegisterRequest(
-        email: email,
-        password: password,
-        firstName: firstName,
-        lastName: lastName,
-      );
-
-      await ApiService.registerValet(request);
-      Get.back(); // veya başka bir yönlendirme
-    } catch (e) {
-      ApiService.handleError(e);
-      rethrow;
-    } finally {
-      isLoading.value = false;
-    }
-  }
-
-  // Logout işlemi
   Future<void> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove(CREDENTIALS_KEY);
       await prefs.remove(USER_KEY);
-      await prefs.remove(USER_TYPE_KEY);
 
       _credentials.value = null;
       currentUser.value = null;
       isLoggedIn.value = false;
 
-      Get.offAllNamed('/login');
+      print('Logout successful'); // Debug
     } catch (e) {
-      debugPrint('Logout error: $e');
+      print('Logout error: $e');
+    } finally {
+      Get.offAllNamed('/login');
     }
   }
 
-  // Forgot Password işlemi
   Future<void> forgotPassword(String email) async {
     try {
       isLoading.value = true;
@@ -176,5 +185,30 @@ class AuthController extends GetxController {
     } finally {
       isLoading.value = false;
     }
+  }
+
+  // Getter for auth headers
+  Map<String, String> get authHeaders {
+    if (_credentials.value != null) {
+      return {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+        'Authorization': _credentials.value!,
+      };
+    }
+    return {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+    };
+  }
+
+  // For login request specifically
+  Map<String, String> getBasicAuthHeaders(String email, String password) {
+    final basicAuth = 'Basic ' + base64Encode(utf8.encode('$email:$password'));
+    return {
+      'Accept': 'application/json',
+      'Content-Type': 'application/json',
+      'Authorization': basicAuth,
+    };
   }
 }

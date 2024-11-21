@@ -1,31 +1,27 @@
 import 'package:get/get.dart';
 import 'package:valet_mobile_app/auth/auth_controller.dart';
-import 'package:valet_mobile_app/api_service/api_service.dart';
+import 'package:valet_mobile_app/auth/auth_models.dart';
 
-class BusinessLoginController {
+class BusinessLoginController extends GetxController {
   final AuthController _authController = Get.find<AuthController>();
+  final isLoading = false.obs;
+  final errorMessage = ''.obs;
 
   Future<Map<String, dynamic>> login({
     required String email,
     required String password,
   }) async {
     try {
-      // AuthController üzerinden login işlemini gerçekleştir
-      await _authController.login(
-        email,
-        password,
-        'business', // userType parametresi
-      );
+      final result = await _authController.login(email, password);
+      print('Controller login sonucu: $result'); // Debug
 
-      return {
-        'success': true,
-        'message': 'Giriş başarılı',
-      };
+      // AuthController'dan gelen sonucu direkt olarak dön
+      return result;
     } catch (e) {
-      print('Login Error: $e');
+      print('Controller login hatası: $e'); // Debug
       return {
         'success': false,
-        'message': e.toString(),
+        'message': 'Giriş işlemi başarısız: $e',
       };
     }
   }
@@ -34,8 +30,15 @@ class BusinessLoginController {
     try {
       await _authController.logout();
     } catch (e) {
-      print('Logout Error: $e');
-      rethrow;
+      print('Business Logout Error: $e');
+      // Still navigate to login page even if there's an error
+      Get.offAllNamed('/login');
     }
   }
+
+  // Helper method to check if user is logged in
+  bool get isLoggedIn => _authController.isLoggedIn.value;
+
+  // Helper method to get current user
+  BusinessUser? get currentUser => _authController.currentUser.value;
 }

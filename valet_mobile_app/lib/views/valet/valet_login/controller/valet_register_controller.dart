@@ -1,87 +1,100 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
-import '../../../../auth/auth_controller.dart';
-import '../view/valet_login_view.dart';
+import '../../../../api_service/api_service.dart';
+import '../model/valet_register_model.dart';
 
 class ValetRegisterController extends GetxController {
-  // Text editing controllers
-  final firstnameController = TextEditingController();
-  final lastnameController = TextEditingController();
-  final emailController = TextEditingController();
-  final passwordController = TextEditingController();
-
-  // Observable variables
   final isLoading = false.obs;
   final errorMessage = ''.obs;
+  final formKey = GlobalKey<FormState>();
 
-  // Register işlemi
-  Future<void> register() async {
-    if (!validateForm()) return;
+  final emailController = TextEditingController();
+  final passwordController = TextEditingController();
+  final valetNameController = TextEditingController();
+  final valetSurnameController = TextEditingController();
+  final phoneNumberController = TextEditingController();
 
+  Future<Map<String, dynamic>> register() async {
     try {
-      isLoading.value = true;
-
-      await AuthController.to.registerValet(
-        email: emailController.text,
+      final request = ValetRegisterRequest(
+        email: emailController.text.trim(),
         password: passwordController.text,
-        firstName: firstnameController.text,
-        lastName: lastnameController.text,
+        valetName: valetNameController.text.trim(),
+        valetSurname: valetSurnameController.text.trim(),
+        phoneNumber: phoneNumberController.text.trim(),
       );
 
-      Get.off(() => ValetLoginView());
-      Get.snackbar(
-        'Success',
-        'Registration successful! Please login.',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
-      );
+      print('Register Request: ${request.toJson()}');
+
+      final response = await ApiService.registerValet(request);
+
+      if (response.statusCode == 200 || response.statusCode == 201) {
+        return {
+          'success': true, 
+          'message': 'Kayıt işlemi başarıyla tamamlandı', 
+          'data': response.data
+        };
+      } else {
+        final errorMessage = response.data is Map 
+            ? response.data['message'] ?? 'Kayıt işlemi başarısız oldu' 
+            : 'Kayıt işlemi başarısız oldu';
+
+        return {
+          'success': false,
+          'message': errorMessage,
+        };
+      }
     } catch (e) {
-      errorMessage.value = 'Registration failed: ${e.toString()}';
-    } finally {
-      isLoading.value = false;
+      print('Register Error: $e');
+      
+      if (e.toString().contains('credentials not found')) {
+        return {
+          'success': false,
+          'message': 'Lütfen önce işletme hesabınıza giriş yapın.',
+        };
+      }
+      
+      return {
+        'success': false,
+        'message': 'Bir hata oluştu: $e',
+      };
     }
   }
 
-  // Form validasyonu
-  bool validateForm() {
-    if (firstnameController.text.isEmpty) {
-      errorMessage.value = 'First name is required';
-      return false;
+  String? validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Email alanı zorunludur';
     }
-
-    if (lastnameController.text.isEmpty) {
-      errorMessage.value = 'Last name is required';
-      return false;
+    if (!GetUtils.isEmail(value)) {
+      return 'Geçerli bir email adresi giriniz';
     }
-
-    if (emailController.text.isEmpty) {
-      errorMessage.value = 'Email is required';
-      return false;
-    }
-
-    if (!GetUtils.isEmail(emailController.text)) {
-      errorMessage.value = 'Please enter a valid email';
-      return false;
-    }
-
-    if (passwordController.text.isEmpty) {
-      errorMessage.value = 'Password is required';
-      return false;
-    }
-
-    errorMessage.value = '';
-    return true;
+    return null;
   }
 
-  void goToLogin() => Get.off(() => ValetLoginView());
+  String? validatePhone(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Telefon numarası zorunludur';
+    }
+    if (value.length < 10) {
+      return 'Geçerli bir telefon numarası giriniz';
+    }
+    return null;
+  }
+
+  String? validateRequired(String? value, String fieldName) {
+    if (value == null || value.isEmpty) {
+      return '$fieldName alanı zorunludur';
+    }
+    return null;
+  }
 
   @override
   void onClose() {
-    firstnameController.dispose();
-    lastnameController.dispose();
     emailController.dispose();
     passwordController.dispose();
+    valetNameController.dispose();
+    valetSurnameController.dispose();
+    phoneNumberController.dispose();
     super.onClose();
   }
 }

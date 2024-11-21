@@ -4,6 +4,9 @@ import 'package:valet_mobile_app/auth/auth_controller.dart';
 import 'package:valet_mobile_app/api_service/api_service.dart';
 import 'package:valet_mobile_app/views/business/business_home/business_home_screen_view.dart';
 import 'package:valet_mobile_app/views/business/business_login/view/business_login_view.dart';
+import 'package:valet_mobile_app/views/mainPage.dart';
+import 'package:valet_mobile_app/views/valet/valet_home/valet_home_screen_view.dart';
+import 'package:valet_mobile_app/views/valet/valet_login/view/valet_login_view.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
@@ -26,13 +29,27 @@ class MyApp extends StatelessWidget {
       title: 'Valet App',
       theme: ThemeData(
         primarySwatch: Colors.blue,
+        visualDensity: VisualDensity.adaptivePlatformDensity,
       ),
       debugShowCheckedModeBanner: false,
-      initialRoute: '/login',
+      initialRoute: '/mainPage',
       getPages: [
-        GetPage(name: '/login', page: () => const BusinessLoginView()),
-        GetPage(name: '/home', page: () => const BusinessHome()),
+        GetPage(
+          name: '/business-login',
+          page: () => BusinessLoginView(),
+        ),
+        GetPage(
+          name: '/valet-login',
+          page: () => ValetLoginView(),
+        ),
+        GetPage(
+          name: '/valet-home',
+          page: () => const ValetHomeView(),
+        ),
+        GetPage(name: '/businessHome', page: () => const BusinessHome()),
+        GetPage(name: '/mainPage', page: () => const MainPage()),
       ],
+      defaultTransition: Transition.fade,
     );
   }
 }

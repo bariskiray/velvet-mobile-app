@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:valet_mobile_app/components/custom_text_field.dart';
 import 'package:valet_mobile_app/components/error_message.dart';
-import 'package:valet_mobile_app/views/business/business_login/business_login_view.dart';
+import 'package:valet_mobile_app/views/business/business_login/view/business_login_view.dart';
 
 class BusinessForgotPasswordView extends StatefulWidget {
   const BusinessForgotPasswordView({Key? key}) : super(key: key);

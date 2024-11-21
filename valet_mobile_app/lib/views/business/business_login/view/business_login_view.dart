@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:valet_mobile_app/components/custom_password_field.dart';
 import 'package:valet_mobile_app/components/custom_text_field.dart';
 import 'package:valet_mobile_app/components/error_message.dart';
+import 'package:valet_mobile_app/views/business/business_home/business_home_screen_view.dart';
 import 'package:valet_mobile_app/views/business/business_login/controller/business_login_controller.dart';
 import 'package:valet_mobile_app/views/business/business_login/view/business_register_view.dart';
+import 'package:get/get.dart';
 
 class BusinessLoginView extends StatefulWidget {
   const BusinessLoginView({Key? key}) : super(key: key);
@@ -33,35 +35,42 @@ class _BusinessLoginViewState extends State<BusinessLoginView> {
     });
 
     try {
+      print('Login başlıyor...'); // Debug
       final result = await _controller.login(
         email: _emailController.text,
         password: _passwordController.text,
       );
+      print('Login sonucu: $result'); // Debug
 
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
+      if (result['success'] == true) {
+        print('Login başarılı, sayfaya yönlendiriliyor...'); // Debug
+        if (mounted) {
+          // GetX ile yönlendirme
+          Get.off(() => const BusinessHome());
 
-        if (result['success']) {
-          // AuthController otomatik olarak yönlendirme yapacak
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Giriş başarılı'),
-              backgroundColor: Colors.green,
-            ),
-          );
-        } else {
-          setState(() {
-            _errorMessage = result['message'];
-          });
+          // Veya normal Navigator ile
+          // Navigator.of(context).pushAndRemoveUntil(
+          //   MaterialPageRoute(builder: (context) => const BusinessHome()),
+          //   (route) => false,
+          // );
         }
+      } else {
+        setState(() {
+          _errorMessage = result['message'] ?? 'Giriş başarısız';
+        });
       }
     } catch (e) {
+      print('Login hatası: $e'); // Debug
       if (mounted) {
         setState(() {
           _isLoading = false;
           _errorMessage = 'Bir hata oluştu: $e';
+        });
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
         });
       }
     }

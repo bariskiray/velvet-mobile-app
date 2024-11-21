@@ -1,8 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:valet_mobile_app/components/base_text_field.dart';
-import 'package:valet_mobile_app/components/custom_text_field.dart';
-import '../controller/valet_create_ticket_controller.dart';
+import 'package:valet_mobile_app/views/valet/valet_create_ticket/controller/valet_create_ticket_controller.dart';
 
 class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
   const ValetCreateTicketView({super.key});
@@ -19,7 +18,6 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
       body: Obx(() => SingleChildScrollView(
             child: Column(
               children: [
-                // Üst kısım - Mavi alan
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -31,48 +29,44 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
                   ),
                   child: Padding(
                     padding: const EdgeInsets.all(20),
-                    child: Row(
+                    child: Column(
                       children: [
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
-                            label: const Text(
-                              'Scan QR',
-                              style: TextStyle(
-                                color: Colors.blue,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
-                            ),
+                        const Icon(
+                          Icons.qr_code_scanner,
+                          size: 80,
+                          color: Colors.white,
+                        ),
+                        const SizedBox(height: 16),
+                        const Text(
+                          'Scan QR Code to Create Ticket',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
                         ),
-                        const SizedBox(width: 12),
-                        Expanded(
-                          child: ElevatedButton.icon(
-                            onPressed: () {},
-                            icon: const Icon(Icons.camera_alt, color: Colors.blue),
-                            label: const Text(
-                              'Take Photo',
-                              style: TextStyle(
-                                color: Colors.blue,
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                              ),
+                        const SizedBox(height: 24),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            controller.scanQR();
+                          },
+                          icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
+                          label: const Text(
+                            'Scan QR Code',
+                            style: TextStyle(
+                              color: Colors.blue,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(30),
-                              ),
+                          ),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: Colors.white,
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 32,
+                              vertical: 16,
+                            ),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(30),
                             ),
                           ),
                         ),
@@ -80,8 +74,6 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
                     ),
                   ),
                 ),
-
-                // Form alanı
                 Padding(
                   padding: const EdgeInsets.all(20),
                   child: Column(
@@ -96,90 +88,20 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
                         ),
                       ),
                       const SizedBox(height: 16),
-
-                      // Form alanları
                       BaseTextField(
                         controller: controller.ticketIdController,
                         labelText: 'Ticket ID',
                         hintText: 'Enter ticket ID',
                         keyboardType: TextInputType.number,
                       ),
-                      const SizedBox(height: 16),
-                      BaseTextField(
-                        controller: controller.licensePlateController,
-                        labelText: 'License Plate',
-                        hintText: 'Enter license plate',
-                        keyboardType: TextInputType.number,
-                      ),
-                      const SizedBox(height: 16),
-                      BaseTextField(
-                        controller: controller.brandController,
-                        labelText: 'Brand',
-                        hintText: 'Enter car brand',
-                        keyboardType: TextInputType.name,
-                      ),
-                      const SizedBox(height: 16),
-                      BaseTextField(
-                        controller: controller.typeController,
-                        labelText: 'Car Type',
-                        hintText: 'Enter car type',
-                        keyboardType: TextInputType.name,
-                      ),
-                      const SizedBox(height: 16),
-                      BaseTextField(
-                        controller: controller.colorController,
-                        labelText: 'Color',
-                        hintText: 'Enter car color',
-                        keyboardType: TextInputType.name,
-                      ),
-                      const SizedBox(height: 16),
-                      BaseTextField(
-                        controller: controller.customerNameController,
-                        labelText: 'Customer Name',
-                        hintText: 'Enter customer name',
-                        keyboardType: TextInputType.name,
-                      ),
-                      const SizedBox(height: 16),
-                      BaseTextField(
-                        controller: controller.customerSurnameController,
-                        labelText: 'Customer Surname',
-                        hintText: 'Enter customer surname',
-                        keyboardType: TextInputType.name,
-                      ),
                       const SizedBox(height: 32),
-
-                      // Hata mesajı
-                      if (controller.errorMessage.isNotEmpty)
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          margin: const EdgeInsets.only(bottom: 16),
-                          decoration: BoxDecoration(
-                            color: Colors.red[50],
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(color: Colors.red[200]!),
-                          ),
-                          child: Row(
-                            children: [
-                              Icon(Icons.error_outline, color: Colors.red[700]),
-                              const SizedBox(width: 8),
-                              Expanded(
-                                child: Text(
-                                  controller.errorMessage.value,
-                                  style: TextStyle(color: Colors.red[700]),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-
-                      // Create butonu
                       SizedBox(
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton(
                           onPressed: controller.isLoading.value ? null : controller.createTicket,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.blue[900],
+                            backgroundColor: Colors.green[700],
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
@@ -204,6 +126,30 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
                                 ),
                         ),
                       ),
+                      if (controller.errorMessage.isNotEmpty)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 16),
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              color: Colors.red[50],
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(color: Colors.red[200]!),
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.error_outline, color: Colors.red[700]),
+                                const SizedBox(width: 8),
+                                Expanded(
+                                  child: Text(
+                                    controller.errorMessage.value,
+                                    style: TextStyle(color: Colors.red[700]),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
                     ],
                   ),
                 ),

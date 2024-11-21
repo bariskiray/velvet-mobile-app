@@ -1,42 +1,57 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:valet_mobile_app/views/valet/valet_home/valet_home_screen_view.dart';
 import '../../../../components/custom_password_field.dart';
 import '../../../../components/custom_text_field.dart';
 import '../../../../components/error_message.dart';
 import '../controller/valet_login_controller.dart';
-import 'valet_forgot_password_view.dart';
-import 'valet_register_view.dart';
 
-class ValetLoginView extends StatelessWidget {
-  ValetLoginView({super.key}) {
-    // Controller'ı burada oluştur
-    Get.put(ValetLoginController());
+class ValetLoginView extends StatefulWidget {
+  const ValetLoginView({super.key});
+
+  @override
+  State<ValetLoginView> createState() => _ValetLoginViewState();
+}
+
+class _ValetLoginViewState extends State<ValetLoginView> {
+  late ValetLoginController controller;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(ValetLoginController());
   }
-
-  // Controller'a erişim için getter
-  ValetLoginController get controller => Get.find<ValetLoginController>();
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.blue[900],
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      ),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeader(),
-                const SizedBox(height: 30.0),
-                _buildErrorMessage(),
-                _buildLoginForm(),
-                const SizedBox(height: 20.0),
-                _buildLoginButton(),
-                _buildForgotPasswordButton(),
-                _buildRegisterButton(),
-              ],
+            child: Form(
+              key: controller.formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 30.0),
+                  _buildErrorMessage(),
+                  _buildLoginForm(),
+                  const SizedBox(height: 20.0),
+                  _buildLoginButton(),
+                ],
+              ),
             ),
           ),
         ),
@@ -72,7 +87,7 @@ class ValetLoginView extends StatelessWidget {
     return Column(
       children: [
         CustomTextField(
-          controller: controller.usernameController,
+          controller: controller.emailController,
           labelText: 'Email',
           hintText: 'Enter your email',
           keyboardType: TextInputType.emailAddress,
@@ -88,7 +103,31 @@ class ValetLoginView extends StatelessWidget {
 
   Widget _buildLoginButton() {
     return Obx(() => ElevatedButton(
-          onPressed: controller.isLoading.value ? null : controller.login,
+          onPressed: controller.isLoading.value
+              ? null
+              : () async {
+                  if (controller.formKey.currentState!.validate()) {
+                    final result = await controller.login();
+                    if (result['success'] == true) {
+                      if (!mounted) return;
+                      Navigator.pushReplacement(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ValetHomeView(),
+                        ),
+                      );
+                    } else {
+                      if (!mounted) return;
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(result['message'] ?? 'Giriş başarısız'),
+                          backgroundColor: Colors.red,
+                          duration: const Duration(seconds: 3),
+                        ),
+                      );
+                    }
+                  }
+                },
           style: ElevatedButton.styleFrom(
             foregroundColor: Colors.blue[900],
             backgroundColor: Colors.white,
@@ -100,33 +139,9 @@ class ValetLoginView extends StatelessWidget {
           child: controller.isLoading.value
               ? const CircularProgressIndicator()
               : const Text(
-                  'Login',
+                  'Giriş Yap',
                   style: TextStyle(fontSize: 18.0),
                 ),
         ));
-  }
-
-  Widget _buildForgotPasswordButton() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: TextButton(
-        onPressed: () => Get.to(() => ValetForgotPasswordView()),
-        style: TextButton.styleFrom(
-          foregroundColor: Colors.white,
-        ),
-        child: const Text("Forgot Password?"),
-      ),
-    );
-  }
-
-  Widget _buildRegisterButton() {
-    return TextButton(
-      onPressed: () => Get.to(() => ValetRegisterView()),
-      style: TextButton.styleFrom(
-        foregroundColor: Colors.white,
-        padding: const EdgeInsets.symmetric(vertical: 10.0),
-      ),
-      child: const Text("Don't have an account? Register here"),
-    );
   }
 }

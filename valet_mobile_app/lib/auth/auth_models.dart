@@ -1,20 +1,27 @@
 // Login için request model
+import 'package:get/get.dart';
+
 class LoginRequest {
   final String email;
   final String password;
-  final String userType;
+  final String? businessName;
+  final String? phoneNumber;
 
   LoginRequest({
     required this.email,
     required this.password,
-    required this.userType,
+    this.businessName,
+    this.phoneNumber,
   });
 
-  Map<String, dynamic> toJson() => {
-        'email': email,
-        'password': password,
-        'user_type': userType,
-      };
+  Map<String, dynamic> toJson() {
+    return {
+      'email': email,
+      'password': password,
+      'business_name': businessName,
+      'phone_number': phoneNumber,
+    };
+  }
 }
 
 // Login response model
@@ -35,28 +42,6 @@ class LoginResponse {
       token: json['token'] ?? '',
     );
   }
-}
-
-// Valet register request model
-class ValetRegisterRequest {
-  final String email;
-  final String password;
-  final String firstName;
-  final String lastName;
-
-  ValetRegisterRequest({
-    required this.email,
-    required this.password,
-    required this.firstName,
-    required this.lastName,
-  });
-
-  Map<String, dynamic> toJson() => {
-        'email': email,
-        'password': password,
-        'first_name': firstName,
-        'last_name': lastName,
-      };
 }
 
 // User data model
@@ -92,6 +77,61 @@ class UserData {
       'business_name': businessName,
       'phone_number': phoneNumber,
       'user_type': userType,
+    };
+  }
+}
+
+class BusinessUser {
+  final String email;
+  final String credentials;
+  final String businessName;
+  final String phoneNumber;
+
+  BusinessUser({
+    required this.email,
+    required this.credentials,
+    required this.businessName,
+    this.phoneNumber = '', // Default boş string
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'email': email,
+      'credentials': credentials,
+      'business_name': businessName,
+      'phone_number': phoneNumber ?? '', // Null ise boş string
+    };
+  }
+
+  factory BusinessUser.fromJson(Map<String, dynamic> json) {
+    return BusinessUser(
+      email: json['email'] ?? '',
+      credentials: json['credentials'] ?? '',
+      businessName: json['business_name'] ?? '',
+      phoneNumber: json['phone_number'] ?? '',
+    );
+  }
+}
+
+class RegisterRequest {
+  final String email;
+  final String password;
+  final String businessName;
+  final String phoneNumber;
+
+  RegisterRequest({
+    required this.email,
+    required this.password,
+    required this.businessName,
+    required this.phoneNumber,
+  });
+
+  Map<String, dynamic> toJson() {
+    return {
+      'email': email,
+      'password': password,
+      'business_name': businessName,
+      'phone_number': phoneNumber,
     };
   }
 }

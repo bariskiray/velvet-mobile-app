@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:valet_mobile_app/views/valet/valet_login/view/valet_login_view.dart';
 import '../../../../components/custom_password_field.dart';
 import '../../../../components/custom_text_field.dart';
 import '../../../../components/error_message.dart';
@@ -7,11 +8,9 @@ import '../controller/valet_register_controller.dart';
 
 class ValetRegisterView extends StatelessWidget {
   ValetRegisterView({super.key}) {
-    // Controller'ı burada oluştur
     Get.put(ValetRegisterController());
   }
 
-  // Controller'a erişim için getter
   ValetRegisterController get controller => Get.find<ValetRegisterController>();
 
   @override
@@ -30,18 +29,20 @@ class ValetRegisterView extends StatelessWidget {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.all(20.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildHeader(),
-                const SizedBox(height: 20.0),
-                _buildForm(),
-                const SizedBox(height: 20.0),
-                _buildRegisterButton(),
-                _buildErrorMessage(),
-                _buildLoginLink(),
-              ],
+            child: Form(
+              key: controller.formKey,
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _buildHeader(),
+                  const SizedBox(height: 20.0),
+                  _buildForm(),
+                  const SizedBox(height: 20.0),
+                  _buildRegisterButton(),
+                  _buildErrorMessage(),
+                ],
+              ),
             ),
           ),
         ),
@@ -51,7 +52,7 @@ class ValetRegisterView extends StatelessWidget {
 
   Widget _buildHeader() {
     return const Text(
-      'Vale Register',
+      'Valet Registration',
       textAlign: TextAlign.center,
       style: TextStyle(
         fontSize: 28.0,
@@ -65,29 +66,36 @@ class ValetRegisterView extends StatelessWidget {
     return Column(
       children: [
         CustomTextField(
-          controller: controller.firstnameController,
-          labelText: 'First Name',
-          hintText: 'Enter your first name',
+          controller: controller.valetNameController,
+          labelText: 'Name',
+          hintText: 'Type valet\'s name',
           keyboardType: TextInputType.text,
         ),
         const SizedBox(height: 20.0),
         CustomTextField(
-          controller: controller.lastnameController,
-          labelText: 'Last Name',
-          hintText: 'Enter your last name',
+          controller: controller.valetSurnameController,
+          labelText: 'Surname',
+          hintText: 'Type valet\'s surname',
           keyboardType: TextInputType.text,
         ),
         const SizedBox(height: 20.0),
         CustomTextField(
           controller: controller.emailController,
           labelText: 'Email',
-          hintText: 'Enter your email',
+          hintText: 'Type valet\'s email',
           keyboardType: TextInputType.emailAddress,
+        ),
+        const SizedBox(height: 20.0),
+        CustomTextField(
+          controller: controller.phoneNumberController,
+          labelText: 'Phone Number',
+          hintText: 'Type valet\'s phone number',
+          keyboardType: TextInputType.phone,
         ),
         const SizedBox(height: 20.0),
         CustomPasswordField(
           controller: controller.passwordController,
-          label: 'Password',
+          label: 'Enter Password',
         ),
       ],
     );
@@ -95,7 +103,7 @@ class ValetRegisterView extends StatelessWidget {
 
   Widget _buildRegisterButton() {
     return Obx(() => ElevatedButton(
-          onPressed: controller.isLoading.value ? null : controller.register,
+          onPressed: controller.isLoading.value ? null : _handleRegister,
           style: ElevatedButton.styleFrom(
             foregroundColor: Colors.blue[900],
             backgroundColor: Colors.white,
@@ -107,7 +115,7 @@ class ValetRegisterView extends StatelessWidget {
           child: controller.isLoading.value
               ? const CircularProgressIndicator()
               : const Text(
-                  'Get Started',
+                  'Register',
                   style: TextStyle(fontSize: 18.0),
                 ),
         ));
@@ -125,11 +133,46 @@ class ValetRegisterView extends StatelessWidget {
         : const SizedBox.shrink());
   }
 
-  Widget _buildLoginLink() {
-    return TextButton(
-      onPressed: () => Get.back(), // Direkt login sayfasına dön
-      style: TextButton.styleFrom(foregroundColor: Colors.white),
-      child: const Text("Already have an account? Login here"),
-    );
+  Future<void> _handleRegister() async {
+    if (!controller.formKey.currentState!.validate()) return;
+
+    try {
+      controller.isLoading.value = true;
+
+      final result = await controller.register();
+
+      if (result['success'] == true) {
+        Get.snackbar(
+          'Success',
+          'Valet registration completed successfully',
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 2),
+          snackPosition: SnackPosition.TOP,
+        );
+        await Future.delayed(const Duration(seconds: 2));
+        Get.off(() => ValetLoginView());
+      } else {
+        Get.snackbar(
+          'Error',
+          result['message'] ?? 'Registration failed',
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+          duration: const Duration(seconds: 3),
+          snackPosition: SnackPosition.TOP,
+        );
+      }
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'An error occurred: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        snackPosition: SnackPosition.TOP,
+      );
+    } finally {
+      controller.isLoading.value = false;
+    }
   }
 }

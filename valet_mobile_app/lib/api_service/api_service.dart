@@ -2,16 +2,25 @@ import 'package:dio/dio.dart' as dio;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:valet_mobile_app/views/business/business_login/model/business_register_request.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:valet_mobile_app/views/valet/valet_login/model/valet_login_request.dart';
+
 import '../auth/auth_controller.dart';
 import '../auth/auth_models.dart';
 import 'dart:convert';
+
+import '../views/valet/valet_login/model/valet_register_model.dart';
+
+// Sabitler
+const String CREDENTIALS_KEY = 'business_credentials';
+const String USER_KEY = 'business_user';
 
 class ApiService {
   static late dio.Dio _dio;
 
   static void initializeInterceptors() {
     _dio = dio.Dio(dio.BaseOptions(
-      baseUrl: 'http://127.0.0.1:8000',
+      baseUrl: 'http://127.0.0.1:8000/',
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
@@ -135,12 +144,27 @@ class ApiService {
 
   static Future<dio.Response> registerValet(ValetRegisterRequest request) async {
     try {
-      return await _dio.post(
-        'api/valets/register',
+      final prefs = await SharedPreferences.getInstance();
+      final businessCredentials = prefs.getString('business_credentials');
+
+      if (businessCredentials == null) {
+        throw Exception('Business credentials not found. Please login first.');
+      }
+
+      final response = await _dio.post(
+        '/api/valets/register',
         data: request.toJson(),
-        options: dio.Options(headers: AuthController.to.authHeaders),
+        options: dio.Options(
+          headers: {
+            'Authorization': businessCredentials,
+          },
+        ),
       );
+
+      print('Valet Register Response: ${response.data}');
+      return response;
     } catch (e) {
+      print('Valet Register Error: $e');
       handleError(e);
       rethrow;
     }
@@ -204,6 +228,29 @@ class ApiService {
         options: dio.Options(headers: AuthController.to.authHeaders),
       );
     } catch (e) {
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> loginValet(
+    ValetLoginRequest request,
+    String credentials,
+  ) async {
+    try {
+      final response = await _dio.post(
+        '/api/valets/login',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+          },
+        ),
+      );
+
+      print('Valet Login Response: ${response.data}');
+      return response;
+    } catch (e) {
+      print('Valet Login Error: $e');
       handleError(e);
       rethrow;
     }

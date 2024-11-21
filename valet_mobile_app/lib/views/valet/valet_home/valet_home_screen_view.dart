@@ -19,7 +19,7 @@ class _ValetHomeViewState extends State<ValetHomeView> {
     return Scaffold(
       appBar: AppBar(
         elevation: 20,
-        title: const Text('Valet App', style: TextStyle(color: Color(0xFFFDFDFD), fontWeight: FontWeight.w600)),
+        title: const Text('Valet Home', style: TextStyle(color: Color(0xFFFDFDFD), fontWeight: FontWeight.w600)),
         backgroundColor: Colors.blue[900],
       ),
       body: Center(
@@ -32,7 +32,7 @@ class _ValetHomeViewState extends State<ValetHomeView> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Get.put(ValetCreateTicketController()); // Controller'ı initialize et
+                    Get.put(ValetCreateTicketController()); 
                     Get.to(() => const ValetCreateTicketView());
                   },
                   style: ElevatedButton.styleFrom(
