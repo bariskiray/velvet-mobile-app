@@ -10,6 +10,7 @@ import '../auth/auth_models.dart';
 import 'dart:convert';
 
 import '../views/valet/valet_login/model/valet_register_model.dart';
+import 'dart:io';
 
 // Sabitler
 const String CREDENTIALS_KEY = 'business_credentials';
@@ -19,18 +20,25 @@ class ApiService {
   static late dio.Dio _dio;
 
   static void initializeInterceptors() {
+    final baseUrl = Platform.isIOS
+        ? 'http://192.168.1.2:8000/' // Bilgisayarınızın yerel IP adresi
+        : 'http://127.0.0.1:8000/';
+
     _dio = dio.Dio(dio.BaseOptions(
-      baseUrl: 'http://127.0.0.1:8000/',
+      baseUrl: baseUrl,
       headers: {
         'Accept': 'application/json',
         'Content-Type': 'application/json',
       },
+      connectTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 30),
     ));
 
     _dio.interceptors.add(dio.InterceptorsWrapper(
       onRequest: (options, handler) {
-        print('REQUEST[${options.method}] => PATH: ${options.path}');
+        print('REQUEST[${options.method}] => PATH: ${options.baseUrl}${options.path}');
         print('REQUEST HEADERS: ${options.headers}');
+        print('REQUEST DATA: ${options.data}');
         return handler.next(options);
       },
       onResponse: (response, handler) {
@@ -40,7 +48,8 @@ class ApiService {
       },
       onError: (error, handler) {
         print('ERROR[${error.response?.statusCode}] => PATH: ${error.requestOptions.path}');
-        print('ERROR DATA: ${error.response?.data}');
+        print('ERROR DETAILS: ${error.error}');
+        print('ERROR MESSAGE: ${error.message}');
         return handler.next(error);
       },
     ));

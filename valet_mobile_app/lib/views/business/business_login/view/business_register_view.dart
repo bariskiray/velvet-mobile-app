@@ -27,7 +27,7 @@ class _BusinessRegisterViewState extends State<BusinessRegisterView> {
         _phoneNumberController.text.isEmpty ||
         _passwordController.text.isEmpty) {
       setState(() {
-        _errorMessage = 'Lütfen tüm alanları doldurun';
+        _errorMessage = 'Please fill in all fields';
       });
       return;
     }

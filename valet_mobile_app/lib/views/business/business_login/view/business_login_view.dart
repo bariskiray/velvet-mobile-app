@@ -24,7 +24,7 @@ class _BusinessLoginViewState extends State<BusinessLoginView> {
   Future<void> _login() async {
     if (_emailController.text.isEmpty || _passwordController.text.isEmpty) {
       setState(() {
-        _errorMessage = 'Lütfen tüm alanları doldurun';
+        _errorMessage = 'Please fill in all fields';
       });
       return;
     }

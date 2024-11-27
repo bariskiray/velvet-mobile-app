@@ -1,3 +1,4 @@
+import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 
@@ -9,23 +10,49 @@ class ValetCreateTicketController extends GetxController {
   final isLoading = false.obs;
   final errorMessage = ''.obs;
 
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  Barcode? result;
+  QRViewController? controller;
+
   // QR tarama işlevi
-  Future<void> scanQR() async {
-    try {
-      // QR tarama işlemi
-      // Örnek:
-      // final qrText = await QRScanner.scan();
-      // ticketIdController.text = qrText;
-    } catch (e) {
-      errorMessage.value = 'Failed to scan QR code: ${e.toString()}';
-      Get.snackbar(
-        'Error',
-        errorMessage.value,
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
-    }
+  void scanQR() {
+    Get.to(() => Scaffold(
+          appBar: AppBar(
+            title: const Text('Scan Ticket ID'),
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => Get.back(),
+            ),
+          ),
+          body: QRView(
+            key: qrKey,
+            onQRViewCreated: _onQRViewCreated,
+            overlay: QrScannerOverlayShape(
+              borderColor: Colors.blue,
+              borderRadius: 10,
+              borderLength: 30,
+              borderWidth: 10,
+              cutOutSize: 300,
+            ),
+          ),
+        ));
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    this.controller = controller;
+    controller.scannedDataStream.listen((scanData) {
+      if (scanData.code != null) {
+        controller.dispose();
+        Get.back();
+        ticketIdController.text = scanData.code!;
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
   }
 
   // Ticket tamamlama işlevi

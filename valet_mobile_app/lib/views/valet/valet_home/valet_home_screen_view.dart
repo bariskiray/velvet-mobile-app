@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
-import 'package:valet_mobile_app/views/valet/valet_complete_ticket/valet_complete_ticket_controller.dart';
-import 'package:valet_mobile_app/views/valet/valet_complete_ticket/valet_complete_ticket_view.dart';
+import 'package:valet_mobile_app/views/valet/valet_complete_ticket/controller/valet_complete_ticket_controller.dart';
+import 'package:valet_mobile_app/views/valet/valet_complete_ticket/view/valet_complete_ticket_view.dart';
 import 'package:valet_mobile_app/views/valet/valet_create_ticket/controller/valet_create_ticket_controller.dart';
 import 'package:valet_mobile_app/views/valet/valet_create_ticket/view/valet_create_ticket_view.dart';
 
