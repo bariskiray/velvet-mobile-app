@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:valet_mobile_app/auth/auth_controller.dart';
 import 'package:valet_mobile_app/views/valet/valet_login/view/valet_register_view.dart';
+import 'package:valet_mobile_app/views/business/business_home/controller/business_home_controller.dart';
+import 'package:valet_mobile_app/views/business/business_home/view/valet_list_view.dart';
 
-class BusinessHome extends StatelessWidget {
-  const BusinessHome({super.key});
+class BusinessHomeView extends StatelessWidget {
+  const BusinessHomeView({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -15,8 +17,34 @@ class BusinessHome extends StatelessWidget {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () => AuthController.to.logout(),
+            icon: const Icon(
+              Icons.logout,
+              color: Color.fromARGB(255, 146, 35, 27),
+            ),
+            onPressed: () {
+              Get.dialog(
+                AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Are you sure you want to logout?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Get.back(),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Get.back();
+                        AuthController.to.logout();
+                      },
+                      child: const Text(
+                        'Logout',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -82,7 +110,8 @@ class BusinessHome extends StatelessWidget {
                     title: 'Valet List',
                     color: Colors.orange,
                     onTap: () {
-                      // Navigate to valet list
+                      Get.put(BusinessHomeController()); // Controller'ı initialize et
+                      Get.to(() => const ValetListView());
                     },
                   ),
 

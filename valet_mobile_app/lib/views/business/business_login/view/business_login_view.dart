@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:valet_mobile_app/components/custom_password_field.dart';
 import 'package:valet_mobile_app/components/custom_text_field.dart';
 import 'package:valet_mobile_app/components/error_message.dart';
-import 'package:valet_mobile_app/views/business/business_home/business_home_screen_view.dart';
+import 'package:valet_mobile_app/views/business/business_home/view/business_home_view.dart';
 import 'package:valet_mobile_app/views/business/business_login/controller/business_login_controller.dart';
 import 'package:valet_mobile_app/views/business/business_login/view/business_register_view.dart';
 import 'package:get/get.dart';
@@ -46,7 +46,7 @@ class _BusinessLoginViewState extends State<BusinessLoginView> {
         print('Login başarılı, sayfaya yönlendiriliyor...'); // Debug
         if (mounted) {
           // GetX ile yönlendirme
-          Get.off(() => const BusinessHome());
+          Get.off(() => const BusinessHomeView());
 
           // Veya normal Navigator ile
           // Navigator.of(context).pushAndRemoveUntil(

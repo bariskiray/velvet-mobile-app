@@ -5,6 +5,7 @@ import 'package:valet_mobile_app/views/valet/valet_complete_ticket/controller/va
 import 'package:valet_mobile_app/views/valet/valet_complete_ticket/view/valet_complete_ticket_view.dart';
 import 'package:valet_mobile_app/views/valet/valet_create_ticket/controller/valet_create_ticket_controller.dart';
 import 'package:valet_mobile_app/views/valet/valet_create_ticket/view/valet_create_ticket_view.dart';
+import 'package:valet_mobile_app/auth/auth_controller.dart';
 
 class ValetHomeView extends StatefulWidget {
   const ValetHomeView({super.key});
@@ -18,9 +19,41 @@ class _ValetHomeViewState extends State<ValetHomeView> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        elevation: 20,
-        title: const Text('Valet Home', style: TextStyle(color: Color(0xFFFDFDFD), fontWeight: FontWeight.w600)),
+        elevation: 0,
+        title: const Text('Valet Panel'),
         backgroundColor: Colors.blue[900],
+        actions: [
+          IconButton(
+            icon: const Icon(
+              Icons.logout,
+              color: Color.fromARGB(255, 146, 35, 27),
+            ),
+            onPressed: () {
+              Get.dialog(
+                AlertDialog(
+                  title: const Text('Logout'),
+                  content: const Text('Are you sure you want to logout?'),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Get.back(),
+                      child: const Text('Cancel'),
+                    ),
+                    TextButton(
+                      onPressed: () {
+                        Get.back();
+                        AuthController.to.logout();
+                      },
+                      child: const Text(
+                        'Logout',
+                        style: TextStyle(color: Colors.red),
+                      ),
+                    ),
+                  ],
+                ),
+              );
+            },
+          ),
+        ],
       ),
       body: Center(
         child: Padding(
@@ -32,7 +65,7 @@ class _ValetHomeViewState extends State<ValetHomeView> {
                 width: double.infinity,
                 child: ElevatedButton(
                   onPressed: () {
-                    Get.put(ValetCreateTicketController()); 
+                    Get.put(ValetCreateTicketController());
                     Get.to(() => const ValetCreateTicketView());
                   },
                   style: ElevatedButton.styleFrom(

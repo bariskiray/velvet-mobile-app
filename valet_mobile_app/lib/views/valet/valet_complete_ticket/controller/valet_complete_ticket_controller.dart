@@ -1,7 +1,6 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
-import 'package:valet_mobile_app/views/valet/valet_complete_ticket/view/qr_view.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 

@@ -1,7 +1,7 @@
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:valet_mobile_app/views/business/business_home/business_home_screen_view.dart';
+import 'package:valet_mobile_app/views/business/business_home/view/business_home_view.dart';
 import 'dart:convert';
 import '../api_service/api_service.dart';
 import '../auth/auth_models.dart';
@@ -29,24 +29,26 @@ class AuthController extends GetxController {
       final response = await ApiService.login(loginRequest);
 
       if (response.statusCode == 200) {
-        // Basic Auth string'ini oluştur
         final credentials = 'Basic ' + base64Encode(utf8.encode('$email:$password'));
 
-        // Basit bir business user oluştur
         final businessUser = BusinessUser(
           email: email,
           credentials: credentials,
           businessName: email.split('@')[0],
           phoneNumber: '',
+          businessId: response.data['business_id'],
+          id: response.data['id'],
         );
 
-        // SharedPreferences kullanarak user'ı kaydet
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('business_credentials', credentials); // Credentials'ı kaydet
+        await prefs.setString('business_credentials', credentials);
         await prefs.setString('business_user', jsonEncode(businessUser.toJson()));
 
         currentUser.value = businessUser;
+        _credentials.value = credentials;
         isLoggedIn.value = true;
+
+        print('Login successful - User Data: ${businessUser.toJson()}');
 
         return {'success': true, 'message': 'Giriş başarılı'};
       }
@@ -67,11 +69,9 @@ class AuthController extends GetxController {
     final prefs = await SharedPreferences.getInstance();
 
     try {
-      // Save data
       await prefs.setString(CREDENTIALS_KEY, credentials);
       await prefs.setString(USER_KEY, jsonEncode(userData));
 
-      // Verify save
       final savedCred = prefs.getString(CREDENTIALS_KEY);
       final savedUser = prefs.getString(USER_KEY);
 
@@ -94,14 +94,12 @@ class AuthController extends GetxController {
         if (logged) {
           await Get.offAllNamed('/home')?.catchError((error) {
             print('Navigation error: $error');
-            // Hata durumunda alternatif route
-            Get.offAll(() => const BusinessHome());
+            Get.offAll(() => const BusinessHomeView());
           });
         } else {
           await Get.offAllNamed('/login')?.catchError((error) {
             print('Navigation error: $error');
-            // Hata durumunda alternatif route
-            Get.offAll(() => const BusinessHome());
+            Get.offAll(() => const BusinessHomeView());
           });
         }
       } catch (e) {
@@ -114,36 +112,41 @@ class AuthController extends GetxController {
   Future<void> checkAuthStatus() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final savedCredentials = prefs.getString(CREDENTIALS_KEY);
-      final savedUserData = prefs.getString(USER_KEY);
+      final savedCredentials = prefs.getString('business_credentials');
+      final savedUserData = prefs.getString('business_user');
 
-      print('Saved Credentials: $savedCredentials'); // Debug
-      print('Saved User Data: $savedUserData'); // Debug
+      print('CheckAuthStatus - Saved Credentials: $savedCredentials');
+      print('CheckAuthStatus - Saved User Data: $savedUserData');
 
       if (savedCredentials != null && savedUserData != null) {
         try {
-          _credentials.value = savedCredentials;
           final userData = jsonDecode(savedUserData) as Map<String, dynamic>;
+          print('CheckAuthStatus - Decoded User Data: $userData');
 
-          // fromJson metodunu güvenli bir şekilde kullan
           currentUser.value = BusinessUser(
             email: userData['email'] ?? '',
             credentials: userData['credentials'] ?? '',
             businessName: userData['business_name'] ?? '',
             phoneNumber: userData['phone_number'] ?? '',
+            businessId: int.tryParse(userData['business_id'].toString()),
+            id: int.tryParse(userData['id'].toString()),
           );
+
+          print('CheckAuthStatus - Current User: ${currentUser.value?.toJson()}');
+          print('CheckAuthStatus - Business ID: ${currentUser.value?.businessId}');
+          print('CheckAuthStatus - Valet ID: ${currentUser.value?.id}');
 
           isLoggedIn.value = true;
         } catch (e) {
-          print('User data parse error: $e');
-          await logout(); // Hatalı veri varsa logout yap
+          print('CheckAuthStatus - Parse Error: $e');
+          await logout();
         }
       } else {
-        print('No saved credentials or user data found');
+        print('CheckAuthStatus - No saved data found');
         isLoggedIn.value = false;
       }
     } catch (e) {
-      print('Auth check error: $e');
+      print('CheckAuthStatus - Error: $e');
       await logout();
     }
   }
@@ -151,18 +154,34 @@ class AuthController extends GetxController {
   Future<void> logout() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(CREDENTIALS_KEY);
-      await prefs.remove(USER_KEY);
 
-      _credentials.value = null;
+      // Tüm kimlik bilgilerini temizle
+      await prefs.remove('business_credentials');
+      await prefs.remove('valet_credentials');
+      await prefs.remove('user_type');
+
+      // Kullanıcı durumunu sıfırla
       currentUser.value = null;
-      isLoggedIn.value = false;
 
-      print('Logout successful'); // Debug
+      // Ana sayfaya yönlendir
+      Get.offAllNamed('/mainPage');
+
+      Get.snackbar(
+        'Success',
+        'Successfully logged out',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+      );
     } catch (e) {
-      print('Logout error: $e');
-    } finally {
-      Get.offAllNamed('/login');
+      print('Logout Error: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to logout: $e',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 
@@ -187,7 +206,6 @@ class AuthController extends GetxController {
     }
   }
 
-  // Getter for auth headers
   Map<String, String> get authHeaders {
     if (_credentials.value != null) {
       return {
@@ -202,7 +220,6 @@ class AuthController extends GetxController {
     };
   }
 
-  // For login request specifically
   Map<String, String> getBasicAuthHeaders(String email, String password) {
     final basicAuth = 'Basic ' + base64Encode(utf8.encode('$email:$password'));
     return {

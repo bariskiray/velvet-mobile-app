@@ -1,6 +1,11 @@
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
+import 'package:valet_mobile_app/api_service/api_service.dart';
+import 'package:valet_mobile_app/views/valet/valet_create_ticket/model/valet_create_ticket_request.dart';
+import 'package:valet_mobile_app/auth/auth_controller.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 
 class ValetCreateTicketController extends GetxController {
   // Text editing controller
@@ -55,32 +60,36 @@ class ValetCreateTicketController extends GetxController {
     super.dispose();
   }
 
-  // Ticket tamamlama işlevi
+  // Ticket oluşturma işlevi
   Future<void> createTicket() async {
     if (ticketIdController.text.isEmpty) {
-      errorMessage.value = 'Please enter or scan a ticket ID';
+      errorMessage.value = 'Lütfen bir bilet ID girin veya tarayın';
       return;
     }
 
     try {
       isLoading.value = true;
 
-      // Ticket tamamlama işlemleri burada yapılacak
-      // Örnek:
-      // await ticketService.completeTicket(ticketIdController.text);
+      final ticketRequest = TicketCreateRequest(
+        ticketId: int.parse(ticketIdController.text),
+      );
 
-      Get.back(); // Başarılı olduğunda önceki sayfaya dön
+      print('Create Ticket Request: ${ticketRequest.toJson()}'); // Debug
+      await ApiService.createTicket(ticketRequest);
+
+      Get.back();
       Get.snackbar(
-        'Success',
-        'Ticket created successfully',
+        'Başarılı',
+        'Bilet başarıyla oluşturuldu',
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
     } catch (e) {
-      errorMessage.value = 'Failed to create ticket: ${e.toString()}';
+      print('Create Ticket Error: $e');
+      errorMessage.value = 'Bilet oluşturulamadı: ${e.toString()}';
       Get.snackbar(
-        'Error',
+        'Hata',
         errorMessage.value,
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,

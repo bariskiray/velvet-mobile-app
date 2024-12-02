@@ -86,12 +86,16 @@ class BusinessUser {
   final String credentials;
   final String businessName;
   final String phoneNumber;
+  final int? businessId;
+  final int? id;
 
   BusinessUser({
     required this.email,
     required this.credentials,
     required this.businessName,
-    this.phoneNumber = '', // Default boş string
+    required this.phoneNumber,
+    this.businessId,
+    this.id,
   });
 
   Map<String, dynamic> toJson() {
@@ -99,7 +103,9 @@ class BusinessUser {
       'email': email,
       'credentials': credentials,
       'business_name': businessName,
-      'phone_number': phoneNumber ?? '', // Null ise boş string
+      'phone_number': phoneNumber,
+      'business_id': businessId,
+      'id': id,
     };
   }
 
@@ -109,6 +115,8 @@ class BusinessUser {
       credentials: json['credentials'] ?? '',
       businessName: json['business_name'] ?? '',
       phoneNumber: json['phone_number'] ?? '',
+      businessId: json['business_id'],
+      id: json['id'],
     );
   }
 }
