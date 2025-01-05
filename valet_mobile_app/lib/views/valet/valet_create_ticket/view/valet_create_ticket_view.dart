@@ -4,10 +4,14 @@ import 'package:valet_mobile_app/components/base_text_field.dart';
 import 'package:valet_mobile_app/views/valet/valet_create_ticket/controller/valet_create_ticket_controller.dart';
 
 class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
-  const ValetCreateTicketView({super.key});
+  const ValetCreateTicketView({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.checkOpenTickets();
+    });
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -18,6 +22,62 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
       body: Obx(() => SingleChildScrollView(
             child: Column(
               children: [
+                if (controller.hasOpenTicket.value)
+                  Container(
+                    width: double.infinity,
+                    margin: const EdgeInsets.all(20),
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[50],
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.orange),
+                    ),
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(Icons.warning_amber_rounded, color: Colors.orange[700], size: 24),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Uncompleted Ticket: #${controller.openTicketId}',
+                                style: TextStyle(
+                                  color: Colors.orange[900],
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Text(
+                          'Please complete the open ticket before creating a new one.',
+                          style: TextStyle(
+                            color: Colors.orange[900],
+                            fontSize: 14,
+                          ),
+                        ),
+                        const SizedBox(height: 12),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: controller.goToCompleteTicket,
+                            icon: const Icon(Icons.arrow_forward),
+                            label: const Text('Complete Ticket'),
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: Colors.orange[700],
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 12),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 Container(
                   width: double.infinity,
                   decoration: BoxDecoration(
@@ -47,9 +107,7 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
                         ),
                         const SizedBox(height: 24),
                         ElevatedButton.icon(
-                          onPressed: () {
-                            controller.scanQR();
-                          },
+                          onPressed: controller.hasOpenTicket.value ? null : () => controller.scanQR(),
                           icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
                           label: const Text(
                             'Scan QR Code',
@@ -61,6 +119,7 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
                           ),
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.white,
+                            disabledBackgroundColor: Colors.grey[300],
                             padding: const EdgeInsets.symmetric(
                               horizontal: 32,
                               vertical: 16,
@@ -93,15 +152,17 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
                         labelText: 'Ticket ID',
                         hintText: 'Enter ticket ID',
                         keyboardType: TextInputType.number,
+                        enabled: !controller.hasOpenTicket.value,
                       ),
                       const SizedBox(height: 32),
                       SizedBox(
                         width: double.infinity,
                         height: 55,
                         child: ElevatedButton(
-                          onPressed: controller.isLoading.value ? null : controller.createTicket,
+                          onPressed: controller.hasOpenTicket.value || controller.isLoading.value ? null : controller.createTicket,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: Colors.green[700],
+                            disabledBackgroundColor: Colors.grey[400],
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(30),
                             ),
@@ -126,30 +187,6 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
                                 ),
                         ),
                       ),
-                      if (controller.errorMessage.isNotEmpty)
-                        Padding(
-                          padding: const EdgeInsets.only(top: 16),
-                          child: Container(
-                            padding: const EdgeInsets.all(12),
-                            decoration: BoxDecoration(
-                              color: Colors.red[50],
-                              borderRadius: BorderRadius.circular(8),
-                              border: Border.all(color: Colors.red[200]!),
-                            ),
-                            child: Row(
-                              children: [
-                                Icon(Icons.error_outline, color: Colors.red[700]),
-                                const SizedBox(width: 8),
-                                Expanded(
-                                  child: Text(
-                                    controller.errorMessage.value,
-                                    style: TextStyle(color: Colors.red[700]),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
                     ],
                   ),
                 ),

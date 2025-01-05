@@ -130,11 +130,11 @@ class ValetListView extends GetView<BusinessHomeController> {
                         vertical: 6,
                       ),
                       decoration: BoxDecoration(
-                        color: valet.isActive ? Colors.green : Colors.red,
+                        color: valet.isWorking ? Colors.green : Colors.red,
                         borderRadius: BorderRadius.circular(20),
                       ),
                       child: Text(
-                        valet.isActive ? 'Active' : 'Inactive',
+                        valet.isWorking ? 'Working' : 'Not Working',
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,

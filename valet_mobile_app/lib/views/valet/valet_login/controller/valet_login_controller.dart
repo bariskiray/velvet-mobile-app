@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:get/get.dart';
 import 'package:flutter/material.dart';
@@ -13,6 +14,36 @@ class ValetLoginController extends GetxController {
   final errorMessage = ''.obs;
   final formKey = GlobalKey<FormState>();
 
+  // Input değişikliklerini debounce ile yönetmek için
+  final _debouncer = Debouncer(milliseconds: 300);
+  Worker? _worker;
+
+  @override
+  void onInit() {
+    super.onInit();
+    // Input değişikliklerini dinle
+    emailController.addListener(_onEmailChanged);
+    passwordController.addListener(_onPasswordChanged);
+  }
+
+  void _onEmailChanged() {
+    _debouncer.run(() {
+      // Email validasyonu sadece gerektiğinde yapılır
+      if (formKey.currentState != null) {
+        formKey.currentState!.validate();
+      }
+    });
+  }
+
+  void _onPasswordChanged() {
+    _debouncer.run(() {
+      // Şifre validasyonu sadece gerektiğinde yapılır
+      if (formKey.currentState != null) {
+        formKey.currentState!.validate();
+      }
+    });
+  }
+
   Future<Map<String, dynamic>> login() async {
     try {
       isLoading.value = true;
@@ -25,12 +56,9 @@ class ValetLoginController extends GetxController {
         password: passwordController.text,
       );
 
-      print('Valet Login attempt for: ${request.email}');
-
       final response = await ApiService.loginValet(request, credentials);
 
       if (response.statusCode == 200) {
-        // Vale bilgilerini kaydet
         final prefs = await SharedPreferences.getInstance();
         await prefs.setString('valet_credentials', credentials);
         await prefs.setString('valet_email', request.email);
@@ -38,18 +66,10 @@ class ValetLoginController extends GetxController {
         return {'success': true, 'message': 'Giriş başarılı', 'data': response.data};
       } else {
         final message = response.data is Map ? response.data['message'] ?? 'Giriş başarısız' : 'Giriş başarısız';
-
-        return {
-          'success': false,
-          'message': message,
-        };
+        return {'success': false, 'message': message};
       }
     } catch (e) {
-      print('Valet Login Error: $e');
-      return {
-        'success': false,
-        'message': 'Giriş hatası: $e',
-      };
+      return {'success': false, 'message': 'Giriş hatası: $e'};
     } finally {
       isLoading.value = false;
     }
@@ -57,20 +77,20 @@ class ValetLoginController extends GetxController {
 
   String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Email alanı zorunludur';
+      return 'Email is required';
     }
     if (!GetUtils.isEmail(value)) {
-      return 'Geçerli bir email adresi giriniz';
+      return 'Please enter a valid email address';
     }
     return null;
   }
 
   String? validatePassword(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Şifre alanı zorunludur';
+      return 'Password is required';
     }
     if (value.length < 6) {
-      return 'Şifre en az 6 karakter olmalıdır';
+      return 'Password must be at least 6 characters';
     }
     return null;
   }
@@ -83,8 +103,29 @@ class ValetLoginController extends GetxController {
 
   @override
   void onClose() {
+    _debouncer.dispose();
+    emailController.removeListener(_onEmailChanged);
+    passwordController.removeListener(_onPasswordChanged);
     emailController.dispose();
     passwordController.dispose();
+    _worker?.dispose();
     super.onClose();
+  }
+}
+
+// Debouncer sınıfı
+class Debouncer {
+  final int milliseconds;
+  Timer? _timer;
+
+  Debouncer({required this.milliseconds});
+
+  void run(VoidCallback action) {
+    _timer?.cancel();
+    _timer = Timer(Duration(milliseconds: milliseconds), action);
+  }
+
+  void dispose() {
+    _timer?.cancel();
   }
 }

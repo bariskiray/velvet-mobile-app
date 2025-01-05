@@ -5,7 +5,8 @@ class ValetResponse {
   final String email;
   final String? phoneNumber;
   final int businessId;
-  final bool isActive;
+  final bool isBusy;
+  final bool isWorking;
 
   ValetResponse({
     required this.valetId,
@@ -14,7 +15,8 @@ class ValetResponse {
     required this.email,
     this.phoneNumber,
     required this.businessId,
-    this.isActive = true,
+    required this.isBusy,
+    required this.isWorking,
   });
 
   factory ValetResponse.fromJson(Map<String, dynamic> json) {
@@ -25,7 +27,8 @@ class ValetResponse {
       email: json['email'],
       phoneNumber: json['phone_number'],
       businessId: json['business_id'],
-      isActive: json['is_active'] ?? true,
+      isBusy: json['is_busy'],
+      isWorking: json['is_working'],
     );
   }
 
@@ -37,7 +40,8 @@ class ValetResponse {
       'email': email,
       'phone_number': phoneNumber,
       'business_id': businessId,
-      'is_active': isActive,
+      'is_busy': isBusy,
+      'is_working': isWorking,
     };
   }
 }

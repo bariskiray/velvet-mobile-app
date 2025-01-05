@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:valet_mobile_app/views/business/business_home/model/valet_response.dart';
 import 'package:valet_mobile_app/views/business/business_login/model/business_register_request.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:valet_mobile_app/views/business/devices/model/device_model.dart';
 import 'package:valet_mobile_app/views/valet/valet_create_ticket/model/valet_create_ticket_request.dart';
 import 'package:valet_mobile_app/views/valet/valet_login/model/valet_login_request.dart';
 
@@ -13,18 +14,23 @@ import 'dart:convert';
 
 import '../views/valet/valet_login/model/valet_register_model.dart';
 import 'dart:io';
+import '../views/valet/valet_complete_ticket/model/valet_complete_ticket_model.dart';
+import 'package:http_parser/http_parser.dart';
 
 // Sabitler
 const String CREDENTIALS_KEY = 'auth_credentials';
 const String USER_KEY = 'user_data';
 
 class ApiService {
-  static late dio.Dio _dio;
+  static var _dio = dio.Dio(dio.BaseOptions(
+    baseUrl: 'http://127.0.0.1:8000/',
+    connectTimeout: const Duration(seconds: 60),
+    receiveTimeout: const Duration(seconds: 60),
+    sendTimeout: const Duration(seconds: 60),
+  ));
 
   static void initializeInterceptors() {
-    final baseUrl = Platform.isIOS
-        ? 'http://192.168.1.2:8000/' // Bilgisayarınızın yerel IP adresi
-        : 'http://127.0.0.1:8000/';
+    final baseUrl = 'http://127.0.0.1:8000/';
 
     _dio = dio.Dio(dio.BaseOptions(
       baseUrl: baseUrl,
@@ -272,15 +278,49 @@ class ApiService {
     }
   }
 
-  static Future<dio.Response> updateTicketStatus(String ticketId, String status) async {
+  static Future<dio.Response> updateTicketStatus(ValetCompleteTicketModel ticket) async {
     try {
-      return await _dio.patch(
-        'api/tickets/$ticketId/status',
-        data: {'status': status},
-        options: dio.Options(headers: AuthController.to.authHeaders),
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Kimlik bilgileri bulunamadı');
+      }
+
+      print('Update Ticket Request Data: ${ticket.toJson()}');
+
+      final response = await _dio.put(
+        'api/tickets/update',
+        data: {
+          'ticket_id': ticket.ticketId,
+          'note': ticket.note,
+          'parking_spot': ticket.parkingSpot,
+          'damage': ticket.damage,
+          'license_plate': ticket.licensePlate,
+          'brand': ticket.brand,
+          'color': ticket.color,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
       );
+
+      print('Update Ticket Status Response: ${response.data}');
+
+      if (response.statusCode != 200) {
+        throw Exception('Bilet güncellenemedi: ${response.statusCode}');
+      }
+
+      return response;
+    } on dio.DioException catch (e) {
+      print('Update Ticket Status DioError: ${e.response?.data}');
+      rethrow;
     } catch (e) {
-      handleError(e);
+      print('Update Ticket Status Error: $e');
       rethrow;
     }
   }
@@ -385,6 +425,337 @@ class ApiService {
       throw Exception('Beklenmeyen veri formatı');
     } catch (e) {
       print('Get Valets Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> updateTicket(ValetCompleteTicketModel ticket) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Kimlik bilgileri bulunamadı');
+      }
+
+      print('Update Ticket Request Data: ${ticket.toJson()}'); // Debug log
+
+      final response = await _dio.put(
+        'api/tickets/${ticket.ticketId}',
+        data: ticket.toJson(),
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+          validateStatus: (status) => status! < 600,
+        ),
+      );
+
+      print('Update Ticket Response Status: ${response.statusCode}');
+      print('Update Ticket Response Data: ${response.data}');
+
+      if (response.statusCode == 500) {
+        print('Server Error Details: ${response.data}');
+        if (response.data is Map) {
+          print('Error Detail: ${response.data['detail']}');
+        }
+        throw Exception('Sunucu hatası: ${response.data}');
+      }
+
+      return response;
+    } catch (e) {
+      if (e is dio.DioException) {
+        print('DioError Response Data: ${e.response?.data}');
+        if (e.response?.data is Map) {
+          print('Error Detail: ${e.response?.data['detail']}');
+        }
+      }
+      print('Update Ticket Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> uploadImageToAI(File imageFile) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final formData = dio.FormData.fromMap({
+        'file': await dio.MultipartFile.fromFile(imageFile.path),
+      });
+
+      print('Uploading image to AI...');
+
+      final response = await _dio.post(
+        'api/AI',
+        data: formData,
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+          receiveTimeout: const Duration(minutes: 2),
+          sendTimeout: const Duration(minutes: 2),
+          responseType: dio.ResponseType.json,
+        ),
+      );
+
+      print('AI Upload Response: ${response.data}');
+
+      if (response.statusCode == 200 && response.data['results'] != null) {
+        final results = response.data['results'];
+        return dio.Response(
+          data: {
+            'license_plate': results['plate'],
+            'brand': results['features']['brand'],
+            'color': results['features']['color'],
+          },
+          statusCode: 200,
+          requestOptions: response.requestOptions,
+        );
+      }
+
+      print('AI Response Format: ${response.data}');
+      throw Exception('Unexpected response format');
+    } catch (e) {
+      print('AI Upload Error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<List<dynamic>> getOpenTickets() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/tickets/open',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Open Tickets Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        // Sadece progress_status = 1 olan biletleri filtrele
+        final tickets = response.data as List<dynamic>;
+        return tickets.where((ticket) => ticket['progress_status'] == 1).toList();
+      } else {
+        throw Exception('Failed to get open tickets: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Open Tickets Error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> createDevice(DeviceCreateRequest request) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Kimlik bilgileri bulunamadı');
+      }
+
+      final response = await _dio.post(
+        'api/devices',
+        data: request.toJson(),
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Create Device Response: ${response.data}');
+      return response;
+    } catch (e) {
+      print('Create Device Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<List<Device>> getDevices() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Kimlik bilgileri bulunamadı');
+      }
+
+      final response = await _dio.get(
+        'api/devices',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Get Devices Response: ${response.data}');
+
+      if (response.data is List) {
+        return (response.data as List).map<Device>((json) => Device.fromJson(json)).toList();
+      } else if (response.data is Map && response.data['data'] is List) {
+        return (response.data['data'] as List).map<Device>((json) => Device.fromJson(json)).toList();
+      }
+
+      throw Exception('Beklenmeyen veri formatı');
+    } catch (e) {
+      print('Get Devices Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> assignDevice(int deviceId, int valetId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Kimlik bilgileri bulunamadı');
+      }
+
+      final response = await _dio.put(
+        'api/devices/assign',
+        data: {
+          'device_id': deviceId,
+          'valet_id': valetId,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Assign Device Response: ${response.data}');
+      return response;
+    } catch (e) {
+      print('Assign Device Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> unassignDevice(int deviceId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Kimlik bilgileri bulunamadı');
+      }
+
+      final response = await _dio.put(
+        'api/devices/unassign?device_id=$deviceId',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      print('Unassign Device Raw Response: ${response.data}');
+      print('Unassign Device Status Code: ${response.statusCode}');
+
+      if (response.statusCode == 422) {
+        print('Validation Error Details: ${response.data}');
+        throw Exception('API Validation Error: ${response.data}');
+      }
+
+      return response;
+    } catch (e) {
+      print('Unassign Device Detailed Error: $e');
+      if (e is dio.DioException) {
+        print('Response Data: ${e.response?.data}');
+      }
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>> getValetById(int valetId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/valets/$valetId',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Get Valet Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw Exception('Failed to get valet information');
+      }
+    } catch (e) {
+      print('Get Valet Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> logoutValet() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('valet_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.post(
+        'api/valets/logout',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Valet Logout Response: ${response.data}');
+      return response;
+    } catch (e) {
+      print('Valet Logout Error: $e');
       handleError(e);
       rethrow;
     }

@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:valet_mobile_app/auth/auth_controller.dart';
+import 'package:valet_mobile_app/views/business/checkout/controller/business_checkout_controller.dart';
+import 'package:valet_mobile_app/views/business/checkout/view/business_checkout_view.dart';
+import 'package:valet_mobile_app/views/business/devices/view/business_devices_view.dart';
+import 'package:valet_mobile_app/views/business/payment/controller/business_payment_controller.dart';
+import 'package:valet_mobile_app/views/business/payment/view/business_payment_view.dart';
 import 'package:valet_mobile_app/views/valet/valet_login/view/valet_register_view.dart';
 import 'package:valet_mobile_app/views/business/business_home/controller/business_home_controller.dart';
 import 'package:valet_mobile_app/views/business/business_home/view/valet_list_view.dart';
@@ -110,30 +115,43 @@ class BusinessHomeView extends StatelessWidget {
                     title: 'Valet List',
                     color: Colors.orange,
                     onTap: () {
-                      Get.put(BusinessHomeController()); // Controller'ı initialize et
+                      Get.put(BusinessHomeController());
                       Get.to(() => const ValetListView());
                     },
                   ),
 
-                  // Statistics Card
+                  // Devices Card
                   _buildMenuCard(
                     context,
-                    icon: Icons.bar_chart,
-                    title: 'Statistics',
-                    color: Colors.purple,
+                    icon: Icons.devices,
+                    title: 'Devices',
+                    color: Colors.teal,
                     onTap: () {
-                      // Navigate to statistics
+                      Get.to(() => BusinessDevicesView());
                     },
                   ),
 
-                  // Settings Card
+                  // Checkout Card
                   _buildMenuCard(
                     context,
-                    icon: Icons.settings,
-                    title: 'Settings',
-                    color: Colors.blue,
+                    icon: Icons.point_of_sale,
+                    title: 'Checkout',
+                    color: Colors.red,
                     onTap: () {
-                      // Navigate to settings
+                      Get.put(BusinessCheckoutController());
+                      Get.to(() => BusinessCheckoutView());
+                    },
+                  ),
+
+                  // Payment Card
+                  _buildMenuCard(
+                    context,
+                    icon: Icons.payment,
+                    title: 'Payment',
+                    color: Colors.purple,
+                    onTap: () {
+                      Get.put(BusinessPaymentController());
+                      Get.to(() => const BusinessPaymentView());
                     },
                   ),
                 ],

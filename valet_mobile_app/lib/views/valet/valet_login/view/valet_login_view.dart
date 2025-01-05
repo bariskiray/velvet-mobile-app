@@ -26,14 +26,7 @@ class _ValetLoginViewState extends State<ValetLoginView> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.blue[900],
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-      ),
+      appBar: _buildAppBar(),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
@@ -44,12 +37,12 @@ class _ValetLoginViewState extends State<ValetLoginView> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _buildHeader(),
+                  const _HeaderText(),
                   const SizedBox(height: 30.0),
-                  _buildErrorMessage(),
-                  _buildLoginForm(),
+                  _ErrorMessageWidget(controller: controller),
+                  _LoginForm(controller: controller),
                   const SizedBox(height: 20.0),
-                  _buildLoginButton(),
+                  _LoginButton(controller: controller),
                 ],
               ),
             ),
@@ -59,7 +52,21 @@ class _ValetLoginViewState extends State<ValetLoginView> {
     );
   }
 
-  Widget _buildHeader() {
+  PreferredSizeWidget _buildAppBar() => AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+      );
+}
+
+class _HeaderText extends StatelessWidget {
+  const _HeaderText();
+
+  @override
+  Widget build(BuildContext context) {
     return const Text(
       'Valet Login',
       textAlign: TextAlign.center,
@@ -70,8 +77,15 @@ class _ValetLoginViewState extends State<ValetLoginView> {
       ),
     );
   }
+}
 
-  Widget _buildErrorMessage() {
+class _ErrorMessageWidget extends StatelessWidget {
+  final ValetLoginController controller;
+
+  const _ErrorMessageWidget({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
     return Obx(() => controller.errorMessage.isNotEmpty
         ? Padding(
             padding: const EdgeInsets.only(bottom: 20.0),
@@ -82,8 +96,15 @@ class _ValetLoginViewState extends State<ValetLoginView> {
           )
         : const SizedBox.shrink());
   }
+}
 
-  Widget _buildLoginForm() {
+class _LoginForm extends StatelessWidget {
+  final ValetLoginController controller;
+
+  const _LoginForm({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
     return Column(
       children: [
         CustomTextField(
@@ -91,17 +112,29 @@ class _ValetLoginViewState extends State<ValetLoginView> {
           labelText: 'Email',
           hintText: 'Enter your email',
           keyboardType: TextInputType.emailAddress,
+          icon: Icons.email,
+          validator: (value) => controller.validateEmail(value),
+          onChanged: (value) {},
         ),
         const SizedBox(height: 20.0),
         CustomPasswordField(
           controller: controller.passwordController,
           label: 'Password',
+          validator: (value) => controller.validatePassword(value),
+          onChanged: (value) {},
         ),
       ],
     );
   }
+}
 
-  Widget _buildLoginButton() {
+class _LoginButton extends StatelessWidget {
+  final ValetLoginController controller;
+
+  const _LoginButton({required this.controller});
+
+  @override
+  Widget build(BuildContext context) {
     return Obx(() => ElevatedButton(
           onPressed: controller.isLoading.value
               ? null
@@ -109,21 +142,15 @@ class _ValetLoginViewState extends State<ValetLoginView> {
                   if (controller.formKey.currentState!.validate()) {
                     final result = await controller.login();
                     if (result['success'] == true) {
-                      if (!mounted) return;
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const ValetHomeView(),
-                        ),
-                      );
+                      Get.off(() => const ValetHomeView());
                     } else {
-                      if (!mounted) return;
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(
-                          content: Text(result['message'] ?? 'Giriş başarısız'),
-                          backgroundColor: Colors.red,
-                          duration: const Duration(seconds: 3),
-                        ),
+                      Get.snackbar(
+                        'Hata',
+                        result['message'] ?? 'Giriş başarısız',
+                        backgroundColor: Colors.red,
+                        colorText: Colors.white,
+                        snackPosition: SnackPosition.BOTTOM,
+                        duration: const Duration(seconds: 3),
                       );
                     }
                   }
@@ -137,7 +164,11 @@ class _ValetLoginViewState extends State<ValetLoginView> {
             ),
           ),
           child: controller.isLoading.value
-              ? const CircularProgressIndicator()
+              ? const SizedBox(
+                  height: 20,
+                  width: 20,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
               : const Text(
                   'Giriş Yap',
                   style: TextStyle(fontSize: 18.0),

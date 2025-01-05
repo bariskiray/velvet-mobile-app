@@ -3,6 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:qr_code_scanner/qr_code_scanner.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
+import 'package:dio/dio.dart';
+import 'package:http_parser/http_parser.dart';
+import 'package:valet_mobile_app/api_service/api_service.dart';
+import 'package:valet_mobile_app/views/valet/valet_complete_ticket/model/valet_complete_ticket_model.dart';
 
 class ValetCompleteTicketController extends GetxController {
   // Text editing controllers
@@ -31,34 +35,70 @@ class ValetCompleteTicketController extends GetxController {
   final ImagePicker _picker = ImagePicker();
   final Rx<File?> selectedImage = Rx<File?>(null);
 
+  // Yeni değişkenler ekleyelim
+  final noteController = TextEditingController();
+  final parkingSpotController = TextEditingController();
+  final isDamaged = false.obs;
+
+  // Açık bilet bilgilerini tutmak için
+  final hasOpenTicket = false.obs;
+  final openTicketId = ''.obs;
+
   // Form validation
   bool validateForm() {
     if (ticketIdController.text.isEmpty) {
       errorMessage.value = 'Ticket ID is required';
+      Get.snackbar(
+        'Error',
+        errorMessage.value,
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return false;
     }
     if (licensePlateController.text.isEmpty) {
       errorMessage.value = 'License plate is required';
+      Get.snackbar(
+        'Error',
+        errorMessage.value,
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return false;
     }
     if (brandController.text.isEmpty) {
-      errorMessage.value = 'Brand is required';
-      return false;
-    }
-    if (typeController.text.isEmpty) {
-      errorMessage.value = 'Type is required';
+      errorMessage.value = 'Marka gerekli';
+      Get.snackbar(
+        'Hata',
+        errorMessage.value,
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return false;
     }
     if (colorController.text.isEmpty) {
-      errorMessage.value = 'Color is required';
+      errorMessage.value = 'Renk gerekli';
+      Get.snackbar(
+        'Hata',
+        errorMessage.value,
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return false;
     }
-    if (customerNameController.text.isEmpty) {
-      errorMessage.value = 'Customer name is required';
-      return false;
-    }
-    if (customerSurnameController.text.isEmpty) {
-      errorMessage.value = 'Customer surname is required';
+    if (parkingSpotController.text.isEmpty) {
+      errorMessage.value = 'Park yeri gerekli';
+      Get.snackbar(
+        'Hata',
+        errorMessage.value,
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return false;
     }
     return true;
@@ -71,32 +111,38 @@ class ValetCompleteTicketController extends GetxController {
 
       isLoading.value = true;
 
-      // Ticket oluşturma işlemleri burada yapılacak
-      // Örnek:
-      // final ticket = TicketModel(
-      //   licensePlate: licensePlateController.text,
-      //   brand: brandController.text,
-      //   type: typeController.text,
-      //   color: colorController.text,
-      //   customerName: customerNameController.text,
-      //   customerSurname: customerSurnameController.text,
-      // );
-
-      // await ticketService.createTicket(ticket);
-
-      clearForm();
-      Get.back(); // Başarılı olduğunda önceki sayfaya dön
-      Get.snackbar(
-        'Success',
-        'Ticket completed successfully',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.green,
-        colorText: Colors.white,
+      final ticketModel = ValetCompleteTicketModel(
+        ticketId: int.parse(ticketIdController.text),
+        note: noteController.text.isEmpty ? null : noteController.text,
+        parkingSpot: int.parse(parkingSpotController.text),
+        damage: isDamaged.value,
+        licensePlate: licensePlateController.text,
+        brand: brandController.text,
+        color: colorController.text,
       );
+
+      print('Completing ticket with data: ${ticketModel.toJson()}');
+
+      final response = await ApiService.updateTicketStatus(ticketModel);
+
+      if (response.statusCode == 200) {
+        clearForm();
+        Get.back();
+        Get.snackbar(
+          'Başarılı',
+          'Bilet başarıyla tamamlandı',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.green,
+          colorText: Colors.white,
+        );
+      } else {
+        throw Exception('Bilet tamamlanamadı: ${response.statusCode}');
+      }
     } catch (e) {
-      errorMessage.value = 'Failed to complete ticket: ${e.toString()}';
+      print('Complete Ticket Error: $e');
+      errorMessage.value = 'Bilet tamamlanamadı: ${e.toString()}';
       Get.snackbar(
-        'Error',
+        'Hata',
         errorMessage.value,
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,
@@ -109,12 +155,14 @@ class ValetCompleteTicketController extends GetxController {
 
   // Clear form
   void clearForm() {
+    ticketIdController.clear();
     licensePlateController.clear();
     brandController.clear();
-    typeController.clear();
     colorController.clear();
-    customerNameController.clear();
-    customerSurnameController.clear();
+    noteController.clear();
+    parkingSpotController.clear();
+    isDamaged.value = false;
+    selectedImage.value = null;
     errorMessage.value = '';
   }
 
@@ -170,11 +218,70 @@ class ValetCompleteTicketController extends GetxController {
     colorController.dispose();
     customerNameController.dispose();
     customerSurnameController.dispose();
+    noteController.dispose();
+    parkingSpotController.dispose();
     pageController.dispose();
     super.onClose();
   }
 
-  // Fotoğraf çekme fonksiyonu
+  // Fotoğraf çekildikten veya galeriden seçildikten sonra AI analizi yap
+  Future<void> processImageWithAI(File imageFile) async {
+    try {
+      isLoading.value = true;
+
+      final response = await ApiService.uploadImageToAI(imageFile);
+      final aiResponse = response.data;
+
+      print('AI Response in Controller: $aiResponse');
+
+      if (aiResponse != null) {
+        // Plaka
+        if (aiResponse['license_plate'] != null) {
+          licensePlateController.text = aiResponse['license_plate'].toString();
+        }
+
+        // Marka ve renk features içinden geliyor
+        if (aiResponse['brand'] != null) {
+          brandController.text = aiResponse['brand'].toString();
+        }
+
+        if (aiResponse['color'] != null) {
+          colorController.text = aiResponse['color'].toString();
+        }
+
+        if (licensePlateController.text.isEmpty && brandController.text.isEmpty && colorController.text.isEmpty) {
+          Get.snackbar(
+            'Warning',
+            'AI analysis returned empty results. Please fill in the information manually.',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.orange,
+            colorText: Colors.white,
+          );
+        } else {
+          Get.snackbar(
+            'Success',
+            'Vehicle information filled automatically',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.green,
+            colorText: Colors.white,
+          );
+        }
+      }
+    } catch (e) {
+      print('AI Processing Error: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to get vehicle information',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoading.value = false;
+    }
+  }
+
+  // Mevcut takePhoto metodunu güncelle
   Future<void> takePhoto() async {
     try {
       final XFile? photo = await _picker.pickImage(
@@ -184,18 +291,12 @@ class ValetCompleteTicketController extends GetxController {
 
       if (photo != null) {
         selectedImage.value = File(photo.path);
-        Get.snackbar(
-          'Success',
-          'Photo taken successfully',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-        );
+        await processImageWithAI(selectedImage.value!);
       }
     } catch (e) {
       Get.snackbar(
-        'Error',
-        'Failed to take photo: ${e.toString()}',
+        'Hata',
+        'Fotoğraf çekilemedi: ${e.toString()}',
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -203,6 +304,7 @@ class ValetCompleteTicketController extends GetxController {
     }
   }
 
+  // Mevcut pickFromGallery metodunu güncelle
   Future<void> pickFromGallery() async {
     try {
       final XFile? image = await _picker.pickImage(
@@ -212,18 +314,12 @@ class ValetCompleteTicketController extends GetxController {
 
       if (image != null) {
         selectedImage.value = File(image.path);
-        Get.snackbar(
-          'Success',
-          'Image selected successfully',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Colors.green,
-          colorText: Colors.white,
-        );
+        await processImageWithAI(selectedImage.value!);
       }
     } catch (e) {
       Get.snackbar(
-        'Error',
-        'Failed to pick image: ${e.toString()}',
+        'Hata',
+        'Fotoğraf seçilemedi: ${e.toString()}',
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,
         colorText: Colors.white,
@@ -279,5 +375,63 @@ class ValetCompleteTicketController extends GetxController {
       backgroundColor: Colors.green,
       colorText: Colors.white,
     );
+  }
+
+  void initializeData() {
+    // Tüm değerleri temizle
+    fetchOpenTicket(); // Açık biletleri getir
+  }
+
+  @override
+  void onInit() {
+    super.onInit();
+    fetchOpenTicket();
+  }
+
+  @override
+  void onReady() {
+    super.onReady();
+    fetchOpenTicket();
+  }
+
+  // View'a her girişte çağrılacak metod
+  void refreshTickets() {
+    fetchOpenTicket();
+  }
+
+  Future<void> fetchOpenTicket() async {
+    try {
+      isLoading.value = true;
+      final openTickets = await ApiService.getOpenTickets();
+
+      if (openTickets.isNotEmpty) {
+        final ticket = openTickets.first;
+        ticketIdController.text = ticket['ticket_id'].toString();
+
+        // Direkt ikinci sayfaya geç
+        nextPage();
+      } else {
+        Get.snackbar(
+          'Uyarı',
+          'Tamamlanacak açık bilet bulunamadı',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.orange,
+          colorText: Colors.white,
+        );
+        // Ana sayfaya geri dön
+        Get.back();
+      }
+    } catch (e) {
+      print('Fetch Open Ticket Error: $e');
+      Get.snackbar(
+        'Hata',
+        'Açık biletler alınamadı',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoading.value = false;
+    }
   }
 }

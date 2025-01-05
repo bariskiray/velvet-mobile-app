@@ -8,6 +8,11 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
 
   @override
   Widget build(BuildContext context) {
+    // View'a her girişte verileri yenile
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      controller.refreshTickets();
+    });
+
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
@@ -22,11 +27,10 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                   controller: controller.pageController,
                   physics: const NeverScrollableScrollPhysics(),
                   children: [
-                    // İlk Sayfa - QR ve Ticket ID
+                    // İlk Sayfa - Ticket Kartı veya Boş Durum
                     SingleChildScrollView(
                       child: Column(
                         children: [
-                          // Üst kısım - Mavi alan
                           Container(
                             width: double.infinity,
                             decoration: BoxDecoration(
@@ -36,53 +40,135 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                                 bottomRight: Radius.circular(30),
                               ),
                             ),
-                            child: Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Row(
+                            child: const Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Column(
                                 children: [
-                                  Expanded(
-                                    child: ElevatedButton.icon(
-                                      onPressed: () => controller.scanQR(),
-                                      icon: const Icon(Icons.qr_code_scanner, color: Colors.blue),
-                                      label: const Text(
-                                        'Scan QR',
-                                        style: TextStyle(
-                                          color: Colors.blue,
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.bold,
-                                        ),
-                                      ),
-                                      style: ElevatedButton.styleFrom(
-                                        backgroundColor: Colors.white,
-                                        padding: const EdgeInsets.symmetric(vertical: 16),
-                                        shape: RoundedRectangleBorder(
-                                          borderRadius: BorderRadius.circular(30),
-                                        ),
-                                      ),
+                                  Text(
+                                    'Open Ticket',
+                                    style: TextStyle(
+                                      color: Colors.white,
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  SizedBox(height: 8),
+                                  Text(
+                                    'Click on the ticket to complete',
+                                    style: TextStyle(
+                                      color: Colors.white70,
+                                      fontSize: 16,
                                     ),
                                   ),
                                 ],
                               ),
                             ),
                           ),
-                          const SizedBox(height: 16),
-                          Padding(
-                            padding: const EdgeInsets.all(20),
-                            child: BaseTextField(
-                              controller: controller.ticketIdController,
-                              labelText: 'Ticket ID',
-                              hintText: 'Enter ticket ID',
-                              keyboardType: TextInputType.number,
+                          const SizedBox(height: 20),
+                          if (controller.ticketIdController.text.isEmpty)
+                            Padding(
+                              padding: const EdgeInsets.all(20),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    Icons.note_add_outlined,
+                                    size: 80,
+                                    color: Colors.grey[400],
+                                  ),
+                                  const SizedBox(height: 16),
+                                  Text(
+                                    'No Open Tickets',
+                                    style: TextStyle(
+                                      fontSize: 24,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.grey[700],
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  Text(
+                                    'You haven\'t created any tickets yet.\nPlease create a ticket first.',
+                                    textAlign: TextAlign.center,
+                                    style: TextStyle(
+                                      fontSize: 16,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          else
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: Card(
+                                elevation: 4,
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(15),
+                                ),
+                                child: InkWell(
+                                  onTap: () => controller.nextPage(),
+                                  borderRadius: BorderRadius.circular(15),
+                                  child: Padding(
+                                    padding: const EdgeInsets.all(20),
+                                    child: Column(
+                                      children: [
+                                        Row(
+                                          children: [
+                                            Container(
+                                              padding: const EdgeInsets.all(12),
+                                              decoration: BoxDecoration(
+                                                color: Colors.blue[900]!.withOpacity(0.1),
+                                                borderRadius: BorderRadius.circular(12),
+                                              ),
+                                              child: Icon(
+                                                Icons.local_parking,
+                                                color: Colors.blue[900],
+                                                size: 30,
+                                              ),
+                                            ),
+                                            const SizedBox(width: 15),
+                                            Expanded(
+                                              child: Column(
+                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                children: [
+                                                  Text(
+                                                    'Ticket #${controller.ticketIdController.text}',
+                                                    style: const TextStyle(
+                                                      fontSize: 20,
+                                                      fontWeight: FontWeight.bold,
+                                                    ),
+                                                  ),
+                                                  const SizedBox(height: 4),
+                                                  Text(
+                                                    'Status: Waiting for completion',
+                                                    style: TextStyle(
+                                                      color: Colors.grey[600],
+                                                      fontSize: 14,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            Icon(
+                                              Icons.arrow_forward_ios,
+                                              color: Colors.grey[400],
+                                            ),
+                                          ],
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
                             ),
-                          ),
                         ],
                       ),
                     ),
-                    // İkinci Sayfa - Araba Detayları
+                    // İkinci Sayfa - Mevcut araç detayları sayfası
                     SingleChildScrollView(
                       child: Column(
                         children: [
-                          // Üst kısım - Mavi alan
+                          // Fotoğraf çekme alanı
                           Container(
                             width: double.infinity,
                             decoration: BoxDecoration(
@@ -144,102 +230,135 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                             ),
                           ),
                           const SizedBox(height: 16),
+                          // Seçilen fotoğraf
                           if (controller.selectedImage.value != null)
                             Padding(
-                              padding: const EdgeInsets.all(20),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
+                              padding: const EdgeInsets.symmetric(horizontal: 20),
+                              child: Stack(
                                 children: [
-                                  const Text(
-                                    'Selected Photo',
-                                    style: TextStyle(
-                                      fontSize: 16,
-                                      fontWeight: FontWeight.bold,
-                                      color: Colors.black87,
+                                  Container(
+                                    height: 200,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      borderRadius: BorderRadius.circular(15),
+                                      image: DecorationImage(
+                                        image: FileImage(controller.selectedImage.value!),
+                                        fit: BoxFit.cover,
+                                      ),
                                     ),
                                   ),
-                                  const SizedBox(height: 8),
-                                  Stack(
-                                    children: [
-                                      Container(
-                                        height: 200,
-                                        width: double.infinity,
+                                  // AI işlemi sırasında loading göstergesi
+                                  if (controller.isLoading.value)
+                                    Positioned.fill(
+                                      child: Container(
                                         decoration: BoxDecoration(
                                           borderRadius: BorderRadius.circular(15),
-                                          image: DecorationImage(
-                                            image: FileImage(controller.selectedImage.value!),
-                                            fit: BoxFit.cover,
+                                          color: Colors.black.withOpacity(0.5),
+                                        ),
+                                        child: const Center(
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              CircularProgressIndicator(color: Colors.white),
+                                              SizedBox(height: 8),
+                                              Text(
+                                                'AI Analysis in Progress...',
+                                                style: TextStyle(
+                                                  color: Colors.white,
+                                                  fontSize: 16,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                              ),
+                                            ],
                                           ),
                                         ),
                                       ),
-                                      Positioned(
-                                        top: 8,
-                                        right: 8,
-                                        child: GestureDetector(
-                                          onTap: () => controller.removeImage(),
-                                          child: Container(
-                                            padding: const EdgeInsets.all(4),
-                                            decoration: const BoxDecoration(
-                                              color: Colors.white,
-                                              shape: BoxShape.circle,
-                                            ),
-                                            child: const Icon(
-                                              Icons.close,
-                                              color: Colors.red,
-                                              size: 20,
-                                            ),
-                                          ),
+                                    ),
+                                  // Silme butonu
+                                  Positioned(
+                                    top: 8,
+                                    right: 8,
+                                    child: GestureDetector(
+                                      onTap: () => controller.removeImage(),
+                                      child: Container(
+                                        padding: const EdgeInsets.all(4),
+                                        decoration: const BoxDecoration(
+                                          color: Colors.white,
+                                          shape: BoxShape.circle,
+                                        ),
+                                        child: const Icon(
+                                          Icons.close,
+                                          color: Colors.red,
+                                          size: 20,
                                         ),
                                       ),
-                                    ],
+                                    ),
                                   ),
                                 ],
                               ),
                             ),
+                          // Form alanları
                           Padding(
                             padding: const EdgeInsets.all(20),
                             child: Column(
                               children: [
+                                // Araç bilgileri
                                 BaseTextField(
                                   controller: controller.licensePlateController,
-                                  labelText: 'License Plate',
-                                  hintText: 'Enter license plate',
+                                  labelText: 'Plate',
+                                  hintText: 'Enter plate',
                                   keyboardType: TextInputType.text,
                                 ),
                                 const SizedBox(height: 16),
                                 BaseTextField(
                                   controller: controller.brandController,
                                   labelText: 'Brand',
-                                  hintText: 'Enter car brand',
-                                  keyboardType: TextInputType.text,
-                                ),
-                                const SizedBox(height: 16),
-                                BaseTextField(
-                                  controller: controller.typeController,
-                                  labelText: 'Car Type',
-                                  hintText: 'Enter car type',
+                                  hintText: 'Enter brand',
                                   keyboardType: TextInputType.text,
                                 ),
                                 const SizedBox(height: 16),
                                 BaseTextField(
                                   controller: controller.colorController,
                                   labelText: 'Color',
-                                  hintText: 'Enter car color',
+                                  hintText: 'Enter color',
                                   keyboardType: TextInputType.text,
                                 ),
                                 const SizedBox(height: 16),
+                                // Park bilgileri
                                 BaseTextField(
-                                  controller: controller.customerNameController,
-                                  labelText: 'Customer Name',
-                                  hintText: 'Enter customer name',
-                                  keyboardType: TextInputType.name,
+                                  controller: controller.parkingSpotController,
+                                  labelText: 'Parking Spot',
+                                  hintText: 'Enter parking spot',
+                                  keyboardType: TextInputType.number,
                                 ),
                                 const SizedBox(height: 16),
                                 BaseTextField(
-                                  controller: controller.customerSurnameController,
-                                  labelText: 'Customer Surname',
-                                  hintText: 'Enter customer surname',
-                                  keyboardType: TextInputType.name,
+                                  controller: controller.noteController,
+                                  labelText: 'Note',
+                                  hintText: 'Enter note',
+                                  keyboardType: TextInputType.text,
+                                ),
+                                const SizedBox(height: 16),
+                                // Hasar durumu
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: Colors.grey[300]!),
+                                  ),
+                                  child: ListTile(
+                                    title: const Text(
+                                      'Damage on Vehicle',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                    ),
+                                    trailing: Obx(() => Switch(
+                                          value: controller.isDamaged.value,
+                                          onChanged: (value) => controller.isDamaged.value = value,
+                                        )),
+                                  ),
                                 ),
                               ],
                             ),
@@ -250,6 +369,7 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                   ],
                 ),
               ),
+              // Alt kısım - Butonlar
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: Row(
