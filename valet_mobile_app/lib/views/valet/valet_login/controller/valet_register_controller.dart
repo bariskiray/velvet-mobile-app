@@ -29,15 +29,9 @@ class ValetRegisterController extends GetxController {
       final response = await ApiService.registerValet(request);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return {
-          'success': true, 
-          'message': 'Kayıt işlemi başarıyla tamamlandı', 
-          'data': response.data
-        };
+        return {'success': true, 'message': 'Registration completed successfully', 'data': response.data};
       } else {
-        final errorMessage = response.data is Map 
-            ? response.data['message'] ?? 'Kayıt işlemi başarısız oldu' 
-            : 'Kayıt işlemi başarısız oldu';
+        final errorMessage = response.data is Map ? response.data['message'] ?? 'Registration failed' : 'Registration failed';
 
         return {
           'success': false,
@@ -46,44 +40,44 @@ class ValetRegisterController extends GetxController {
       }
     } catch (e) {
       print('Register Error: $e');
-      
+
       if (e.toString().contains('credentials not found')) {
         return {
           'success': false,
-          'message': 'Lütfen önce işletme hesabınıza giriş yapın.',
+          'message': 'Please login to your business account first.',
         };
       }
-      
+
       return {
         'success': false,
-        'message': 'Bir hata oluştu: $e',
+        'message': 'An error occurred: $e',
       };
     }
   }
 
   String? validateEmail(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Email alanı zorunludur';
+      return 'Email field is required';
     }
     if (!GetUtils.isEmail(value)) {
-      return 'Geçerli bir email adresi giriniz';
+      return 'Please enter a valid email address';
     }
     return null;
   }
 
   String? validatePhone(String? value) {
     if (value == null || value.isEmpty) {
-      return 'Telefon numarası zorunludur';
+      return 'Phone number is required';
     }
     if (value.length < 10) {
-      return 'Geçerli bir telefon numarası giriniz';
+      return 'Please enter a valid phone number';
     }
     return null;
   }
 
   String? validateRequired(String? value, String fieldName) {
     if (value == null || value.isEmpty) {
-      return '$fieldName alanı zorunludur';
+      return '$fieldName field is required';
     }
     return null;
   }

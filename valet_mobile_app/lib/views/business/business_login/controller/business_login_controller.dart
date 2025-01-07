@@ -13,15 +13,14 @@ class BusinessLoginController extends GetxController {
   }) async {
     try {
       final result = await _authController.login(email, password);
-      print('Controller login sonucu: $result'); // Debug
+      print('Controller login result: $result');
 
-      // AuthController'dan gelen sonucu direkt olarak dön
       return result;
     } catch (e) {
-      print('Controller login hatası: $e'); // Debug
+      print('Controller login error: $e');
       return {
         'success': false,
-        'message': 'Giriş işlemi başarısız: $e',
+        'message': 'Login failed: $e',
       };
     }
   }

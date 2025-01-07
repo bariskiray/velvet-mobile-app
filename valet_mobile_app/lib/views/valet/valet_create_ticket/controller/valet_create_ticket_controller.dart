@@ -58,13 +58,13 @@ class ValetCreateTicketController extends GetxController {
     }
   }
 
-  // QR tarama işlevi
+  // QR tarama işlevi -> QR scanning function
   Future<void> scanQR() async {
     try {
       if (hasOpenTicket.value) {
         Get.snackbar(
-          'Hata',
-          'Lütfen önce açık bileti (#${openTicketId.value}) tamamlayın',
+          'Error',
+          'Please complete the open ticket (#${openTicketId.value}) first',
           snackPosition: SnackPosition.TOP,
           backgroundColor: Colors.red,
           colorText: Colors.white,
@@ -94,9 +94,9 @@ class ValetCreateTicketController extends GetxController {
           ));
     } catch (e) {
       print('Scan QR Error: $e');
-      errorMessage.value = 'QR tarama hatası: ${e.toString()}';
+      errorMessage.value = 'QR scanning error: ${e.toString()}';
       Get.snackbar(
-        'Hata',
+        'Error',
         errorMessage.value,
         snackPosition: SnackPosition.TOP,
         backgroundColor: Colors.red,

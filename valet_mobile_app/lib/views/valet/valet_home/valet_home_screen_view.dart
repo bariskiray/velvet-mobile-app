@@ -59,6 +59,13 @@ class _ValetHomeViewState extends State<ValetHomeView> with SingleTickerProvider
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(15))),
         actions: [
           IconButton(
+            icon: Icon(
+              Icons.local_parking,
+              color: Colors.white,
+            ),
+            onPressed: () => controller.showParkingSpotsDialog(),
+          ),
+          IconButton(
             icon: const Icon(
               Icons.logout,
               color: Color.fromARGB(255, 146, 35, 27),
@@ -148,7 +155,7 @@ class _ValetHomeViewState extends State<ValetHomeView> with SingleTickerProvider
                     color: Colors.green[700]!,
                     onPressed: () {
                       Get.put(ValetCompleteTicketController());
-                      Get.to(() => ValetCompleteTicketView());
+                      Get.to(() => const ValetCompleteTicketView());
                     },
                   ),
                 ),

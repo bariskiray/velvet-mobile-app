@@ -35,36 +35,29 @@ class _BusinessLoginViewState extends State<BusinessLoginView> {
     });
 
     try {
-      print('Login başlıyor...'); // Debug
+      print('Login starting...'); // Changed from 'Login başlıyor...'
       final result = await _controller.login(
         email: _emailController.text,
         password: _passwordController.text,
       );
-      print('Login sonucu: $result'); // Debug
+      print('Login result: $result');
 
       if (result['success'] == true) {
-        print('Login başarılı, sayfaya yönlendiriliyor...'); // Debug
+        print('Login successful, redirecting to page...');
         if (mounted) {
-          // GetX ile yönlendirme
           Get.off(() => const BusinessHomeView());
-
-          // Veya normal Navigator ile
-          // Navigator.of(context).pushAndRemoveUntil(
-          //   MaterialPageRoute(builder: (context) => const BusinessHome()),
-          //   (route) => false,
-          // );
         }
       } else {
         setState(() {
-          _errorMessage = result['message'] ?? 'Giriş başarısız';
+          _errorMessage = result['message'] ?? 'Login failed';
         });
       }
     } catch (e) {
-      print('Login hatası: $e'); // Debug
+      print('Login error: $e');
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Bir hata oluştu: $e';
+          _errorMessage = 'An error occurred: $e';
         });
       }
     } finally {

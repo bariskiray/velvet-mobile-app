@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:valet_mobile_app/api_service/api_service.dart';
 import 'package:valet_mobile_app/views/business/payment/model/business_payment_model.dart';
 
 class BusinessPaymentController extends GetxController {
   final selectedPaymentMethod = 'Credit Card'.obs;
   final isLoading = false.obs;
   final amount = 0.0.obs;
+  final tip = 0.0.obs;
   final ticketId = ''.obs;
   final parkingDuration = ''.obs;
   final isCheckingTicket = false.obs;
+  final selectedTipPercentage = 0.0.obs;
 
   @override
   void onInit() {
-    ever(ticketId, (_) => checkTicket(ticketId.value));
     super.onInit();
   }
 
@@ -21,21 +23,33 @@ class BusinessPaymentController extends GetxController {
 
     isCheckingTicket.value = true;
     try {
-      // Mock data için delay
-      await Future.delayed(const Duration(milliseconds: 800));
+      final response = await ApiService.getTicketById(int.parse(id));
 
-      // Mock park süresi
-      if (id == "123") {
-        parkingDuration.value = "2 saat 15 dakika";
-        amount.value = 50.0;
-      } else if (id == "456") {
-        parkingDuration.value = "5 saat 30 dakika";
-        amount.value = 120.0;
-      } else {
-        throw Exception("Ticket bulunamadı");
-      }
+      // Calculate duration
+      final openDate = DateTime.parse(response['open_date']);
+      final closeDate = response['close_date'] != null ? DateTime.parse(response['close_date']) : DateTime.now();
+
+      final duration = closeDate.difference(openDate);
+
+      // Format duration
+      final hours = duration.inHours;
+      final minutes = duration.inMinutes.remainder(60);
+      parkingDuration.value = '$hours hours ${minutes > 0 ? '$minutes minutes' : ''}';
+
+      // Calculate fee (Example: $10 per hour)
+      final hourlyRate = 10.0;
+      amount.value = (hours + (minutes / 60)) * hourlyRate;
+
+      // Round amount
+      amount.value = double.parse(amount.value.toStringAsFixed(2));
     } catch (e) {
-      Get.snackbar('Hata', 'Ticket bilgisi alınamadı');
+      Get.snackbar(
+        'Error',
+        'Failed to get ticket information: ${e.toString()}',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       parkingDuration.value = '';
       amount.value = 0.0;
     } finally {
@@ -45,35 +59,41 @@ class BusinessPaymentController extends GetxController {
 
   Future<void> processPayment() async {
     if (amount.value <= 0) {
-      Get.snackbar('Hata', 'Lütfen geçerli bir tutar giriniz');
+      Get.snackbar('Error', 'Please enter a valid amount');
       return;
     }
 
     if (ticketId.value.isEmpty) {
-      Get.snackbar('Hata', 'Lütfen ticket ID giriniz');
+      Get.snackbar('Error', 'Please enter a ticket ID');
       return;
     }
 
     try {
       isLoading.value = true;
 
-      // Mock payment işlemi
-      await Future.delayed(const Duration(seconds: 1));
+      final response = await ApiService.createPayment(
+        amount: amount.value,
+        paymentMethod: selectedPaymentMethod.value.toLowerCase(),
+        tip: tip.value,
+        ticketId: int.parse(ticketId.value),
+      );
 
       final payment = BusinessPaymentModel(
-        paymentId: 1,
+        paymentId: response.data['id'] ?? 1,
         paymentDate: DateTime.now(),
         amount: amount.value,
         paymentMethod: selectedPaymentMethod.value,
         ticketId: ticketId.value,
+        tip: tip.value,
       );
 
-      print('Ödeme başarılı: ${payment.toJson()}');
+      print('Payment successful: ${payment.toJson()}');
 
-      Get.snackbar('Başarılı', 'Ödeme işlemi tamamlandı');
-      Get.offAllNamed('/business/home');
+      Get.snackbar('Success', 'Payment completed');
+      resetValues();
+      Get.back();
     } catch (e) {
-      Get.snackbar('Hata', 'Ödeme işlemi başarısız');
+      Get.snackbar('Error', 'Payment failed: ${e.toString()}');
     } finally {
       isLoading.value = false;
     }
@@ -82,9 +102,41 @@ class BusinessPaymentController extends GetxController {
   void resetValues() {
     selectedPaymentMethod.value = 'Credit Card';
     amount.value = 0.0;
+    tip.value = 0.0;
     ticketId.value = '';
     parkingDuration.value = '';
     isLoading.value = false;
     isCheckingTicket.value = false;
+  }
+
+  void increaseAmount() {
+    amount.value += 1;
+  }
+
+  void decreaseAmount() {
+    if (amount.value > 0) {
+      amount.value -= 1;
+    }
+  }
+
+  void increaseTip() {
+    tip.value += 1;
+  }
+
+  void decreaseTip() {
+    if (tip.value > 0) {
+      tip.value -= 1;
+    }
+  }
+
+  void setTipPercentage(double percentage) {
+    selectedTipPercentage.value = percentage;
+    tip.value = (amount.value * percentage).roundToDouble();
+  }
+
+  @override
+  void onClose() {
+    resetValues();
+    super.onClose();
   }
 }

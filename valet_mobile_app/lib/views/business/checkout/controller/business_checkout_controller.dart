@@ -67,14 +67,15 @@ class BusinessCheckoutController extends GetxController {
       isLoading.value = true;
       final response = await ApiService.getValets();
 
-      // is_busy değeri false olan vale'leri filtrele
-      final availableValetsList = List<ValetResponse>.from(response).where((valet) => valet.isBusy == false).toList();
+      // Filter valets where is_busy is false
+      final availableValetsList =
+          List<ValetResponse>.from(response).where((valet) => valet.isBusy == false && valet.isWorking == true).toList();
 
       availableValets.assignAll(availableValetsList);
     } catch (e) {
       Get.snackbar(
-        'Hata',
-        'Vale listesi yüklenirken bir hata oluştu',
+        'Error',
+        'An error occurred while loading valet list',
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
@@ -83,17 +84,22 @@ class BusinessCheckoutController extends GetxController {
     }
   }
 
-  Future<void> assignValet(dynamic valet) async {
+  Future<void> assignValet(ValetResponse valet) async {
     if (ticketIdController.text.isEmpty) {
-      Get.snackbar('Error', 'Please enter a ticket ID first');
+      Get.snackbar(
+        'Error',
+        'Please enter a ticket ID first',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
       return;
     }
 
     try {
       await Get.dialog(
         AlertDialog(
-          title: Text('Confirm Assignment'),
-          content: Text('Would you like to assign the car to ${valet['name']}?'),
+          title: Text('Assignment Confirmation'),
+          content: Text('Do you want to assign the vehicle to valet ${valet.valetName}?'),
           actions: [
             TextButton(
               onPressed: () => Get.back(),
@@ -102,11 +108,17 @@ class BusinessCheckoutController extends GetxController {
             TextButton(
               onPressed: () async {
                 Get.back();
-                // TODO: API integration will be added
-                Get.back(); // Exit checkout page
+                isLoading.value = true;
+
+                await ApiService.checkoutTicket(
+                  int.parse(ticketIdController.text),
+                  valet.valetId,
+                );
+
+                Get.back();
                 Get.snackbar(
                   'Success',
-                  'Car successfully assigned to ${valet['name']}',
+                  'Vehicle successfully assigned to valet ${valet.valetName}',
                   backgroundColor: Colors.green,
                   colorText: Colors.white,
                 );
@@ -117,7 +129,14 @@ class BusinessCheckoutController extends GetxController {
         ),
       );
     } catch (e) {
-      Get.snackbar('Error', 'Failed to assign valet');
+      Get.snackbar(
+        'Error',
+        'Valet assignment failed: ${e.toString()}',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoading.value = false;
     }
   }
 }

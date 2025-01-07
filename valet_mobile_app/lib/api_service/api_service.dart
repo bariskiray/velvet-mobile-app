@@ -213,7 +213,7 @@ class ApiService {
       print('Create Ticket - Full Request: $requestData');
 
       if (credentials == null) {
-        throw Exception('Kimlik bilgileri bulunamadı');
+        throw Exception('Authentication credentials not found');
       }
 
       final response = await _dio.post(
@@ -237,7 +237,7 @@ class ApiService {
         if (response.data is Map) {
           print('Error Detail: ${response.data['detail']}');
         }
-        throw Exception('Sunucu hatası: ${response.data}');
+        throw Exception('Server error: ${response.data}');
       }
 
       return response;
@@ -254,37 +254,13 @@ class ApiService {
     }
   }
 
-  static Future<dio.Response> getTickets() async {
-    try {
-      return await _dio.get(
-        'api/tickets',
-        options: dio.Options(headers: AuthController.to.authHeaders),
-      );
-    } catch (e) {
-      handleError(e);
-      rethrow;
-    }
-  }
-
-  static Future<dio.Response> getTicketById(String ticketId) async {
-    try {
-      return await _dio.get(
-        'api/tickets/$ticketId',
-        options: dio.Options(headers: AuthController.to.authHeaders),
-      );
-    } catch (e) {
-      handleError(e);
-      rethrow;
-    }
-  }
-
   static Future<dio.Response> updateTicketStatus(ValetCompleteTicketModel ticket) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final credentials = prefs.getString('business_credentials');
 
       if (credentials == null) {
-        throw Exception('Kimlik bilgileri bulunamadı');
+        throw Exception('Authentication credentials not found');
       }
 
       print('Update Ticket Request Data: ${ticket.toJson()}');
@@ -312,7 +288,7 @@ class ApiService {
       print('Update Ticket Status Response: ${response.data}');
 
       if (response.statusCode != 200) {
-        throw Exception('Bilet güncellenemedi: ${response.statusCode}');
+        throw Exception('Ticket update failed: ${response.statusCode}');
       }
 
       return response;
@@ -399,7 +375,7 @@ class ApiService {
       final credentials = prefs.getString('business_credentials');
 
       if (credentials == null) {
-        throw Exception('Kimlik bilgileri bulunamadı');
+        throw Exception('Authentication credentials not found');
       }
 
       final response = await _dio.get(
@@ -422,7 +398,7 @@ class ApiService {
         return (response.data['data'] as List).map<ValetResponse>((json) => ValetResponse.fromJson(json)).toList();
       }
 
-      throw Exception('Beklenmeyen veri formatı');
+      throw Exception('Unexpected data format');
     } catch (e) {
       print('Get Valets Error: $e');
       handleError(e);
@@ -436,7 +412,7 @@ class ApiService {
       final credentials = prefs.getString('business_credentials');
 
       if (credentials == null) {
-        throw Exception('Kimlik bilgileri bulunamadı');
+        throw Exception('Authentication credentials not found');
       }
 
       print('Update Ticket Request Data: ${ticket.toJson()}'); // Debug log
@@ -462,7 +438,7 @@ class ApiService {
         if (response.data is Map) {
           print('Error Detail: ${response.data['detail']}');
         }
-        throw Exception('Sunucu hatası: ${response.data}');
+        throw Exception('Server error: ${response.data}');
       }
 
       return response;
@@ -571,7 +547,7 @@ class ApiService {
       final credentials = prefs.getString('business_credentials');
 
       if (credentials == null) {
-        throw Exception('Kimlik bilgileri bulunamadı');
+        throw Exception('Authentication credentials not found');
       }
 
       final response = await _dio.post(
@@ -600,7 +576,7 @@ class ApiService {
       final credentials = prefs.getString('business_credentials');
 
       if (credentials == null) {
-        throw Exception('Kimlik bilgileri bulunamadı');
+        throw Exception('Authentication credentials not found');
       }
 
       final response = await _dio.get(
@@ -621,7 +597,7 @@ class ApiService {
         return (response.data['data'] as List).map<Device>((json) => Device.fromJson(json)).toList();
       }
 
-      throw Exception('Beklenmeyen veri formatı');
+      throw Exception('Unexpected data format');
     } catch (e) {
       print('Get Devices Error: $e');
       handleError(e);
@@ -635,7 +611,7 @@ class ApiService {
       final credentials = prefs.getString('business_credentials');
 
       if (credentials == null) {
-        throw Exception('Kimlik bilgileri bulunamadı');
+        throw Exception('Authentication credentials not found');
       }
 
       final response = await _dio.put(
@@ -667,7 +643,7 @@ class ApiService {
       final credentials = prefs.getString('business_credentials');
 
       if (credentials == null) {
-        throw Exception('Kimlik bilgileri bulunamadı');
+        throw Exception('Authentication credentials not found');
       }
 
       final response = await _dio.put(
@@ -756,6 +732,353 @@ class ApiService {
       return response;
     } catch (e) {
       print('Valet Logout Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> checkoutTicket(int ticketId, int valetId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.put(
+        'api/tickets/checkout',
+        queryParameters: {
+          'ticket_id': ticketId,
+          'valet_id': valetId,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Ticket checkout operation failed: ${response.statusCode}');
+      }
+
+      return response;
+    } catch (e) {
+      print('Checkout Ticket Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<List<dynamic>> getClosedTickets() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/tickets/closed',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Closed Tickets Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as List<dynamic>;
+      } else {
+        throw Exception('Failed to get closed tickets: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Closed Tickets Error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> deliverCar(int ticketId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.put(
+        'api/tickets/deliver_car',
+        queryParameters: {
+          'ticket_id': ticketId,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      if (response.statusCode != 200) {
+        throw Exception('Car delivery operation failed: ${response.statusCode}');
+      }
+
+      return response;
+    } catch (e) {
+      print('Deliver Car Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> createPayment({
+    required double amount,
+    required String paymentMethod,
+    required double tip,
+    required int ticketId,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.post(
+        'api/payments',
+        data: {
+          'amount': amount,
+          'payment_method': paymentMethod,
+          'tip': tip,
+          'ticket_id': ticketId,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      print('Create Payment Response: ${response.data}');
+
+      // 201 ve 200 durumlarını başarılı kabul et
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        return response;
+      } else {
+        throw Exception('Payment failed: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Create Payment Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<List<dynamic>> getTickets({
+    String? startDate,
+    String? endDate,
+    int? progressStatus,
+    int limit = 10,
+    int offset = 0,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      // Query parametrelerini oluştur
+      final Map<String, dynamic> queryParams = {
+        'limit': limit,
+        'offset': offset,
+      };
+
+      // Opsiyonel parametreleri ekle
+      if (startDate != null) queryParams['start_date'] = startDate;
+      if (endDate != null) queryParams['end_date'] = endDate;
+      if (progressStatus != null) queryParams['progress_status'] = progressStatus;
+
+      final response = await _dio.get(
+        'api/tickets',
+        queryParameters: queryParams,
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Get Tickets Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as List<dynamic>;
+      } else {
+        throw Exception('Failed to get tickets: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Tickets Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>> getCarDetails(int carId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/cars/$carId',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Get Car Details Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to get vehicle information: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Car Details Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>> getTicketById(int ticketId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/tickets/$ticketId',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Get Ticket By ID Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to get ticket information: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Ticket By ID Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<List<Map<String, dynamic>>> getParkingSpots() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('valet_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/parking-spots',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Parking Spots Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        final availableSpots = List<int>.from(response.data);
+
+        // Create full spots list (1-60)
+        final allSpots = List.generate(
+            60,
+            (index) => {
+                  'spot': index + 1,
+                  'isOccupied': !availableSpots.contains(index + 1), // If not in available list, it means occupied
+                });
+
+        return allSpots;
+      } else {
+        throw Exception('Failed to get parking spots: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Parking Spots Error: $e');
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>?> getPaymentByTicketId(int ticketId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/payments/$ticketId',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+          validateStatus: (status) => status! < 500,
+        ),
+      );
+
+      print('Get Payment Response: ${response.data}');
+
+      // 404 durumunda null dön
+      if (response.statusCode == 404) {
+        return null;
+      }
+
+      if (response.statusCode == 200) {
+        return response.data as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to get payment: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Payment Error: $e');
       handleError(e);
       rethrow;
     }

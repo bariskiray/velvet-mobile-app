@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:valet_mobile_app/auth/auth_controller.dart';
+import 'package:valet_mobile_app/views/business/business_tickets/controller/business_tickets_controller.dart';
+import 'package:valet_mobile_app/views/business/business_tickets/view/business_tickets_view.dart';
 import 'package:valet_mobile_app/views/business/checkout/controller/business_checkout_controller.dart';
 import 'package:valet_mobile_app/views/business/checkout/view/business_checkout_view.dart';
 import 'package:valet_mobile_app/views/business/devices/view/business_devices_view.dart';
@@ -117,6 +119,17 @@ class BusinessHomeView extends StatelessWidget {
                     onTap: () {
                       Get.put(BusinessHomeController());
                       Get.to(() => const ValetListView());
+                    },
+                  ),
+
+                  _buildMenuCard(
+                    context,
+                    icon: Icons.edit_document,
+                    title: 'Tickets',
+                    color: Colors.blue,
+                    onTap: () {
+                      Get.put(BusinessTicketsController());
+                      Get.to(() => const BusinessTicketsView());
                     },
                   ),
 

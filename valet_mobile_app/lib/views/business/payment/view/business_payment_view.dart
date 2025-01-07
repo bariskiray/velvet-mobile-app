@@ -172,15 +172,86 @@ class BusinessPaymentView extends GetView<BusinessPaymentController> {
             ),
           ),
           const SizedBox(height: 12),
-          TextField(
-            keyboardType: TextInputType.number,
-            decoration: const InputDecoration(
-              border: OutlineInputBorder(),
-              hintText: 'Enter amount',
-              prefixText: '\$',
-            ),
-            controller: TextEditingController(text: controller.amount.value.toString()),
-            onChanged: (value) => controller.amount.value = double.tryParse(value) ?? controller.amount.value,
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    hintText: 'Enter amount',
+                    prefixText: '\$',
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove),
+                          onPressed: () => controller.decreaseAmount(),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: () => controller.increaseAmount(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  controller: TextEditingController(text: controller.amount.value.toStringAsFixed(2)),
+                  onChanged: (value) => controller.amount.value = double.tryParse(value) ?? controller.amount.value,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text(
+                'Tip',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+              Row(
+                children: [
+                  _buildTipPercentageButton('10%', 0.10),
+                  const SizedBox(width: 8),
+                  _buildTipPercentageButton('15%', 0.15),
+                  const SizedBox(width: 8),
+                  _buildTipPercentageButton('20%', 0.20),
+                ],
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: TextField(
+                  keyboardType: TextInputType.number,
+                  decoration: InputDecoration(
+                    border: const OutlineInputBorder(),
+                    hintText: 'Enter tip amount',
+                    prefixText: '\$',
+                    suffixIcon: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.remove),
+                          onPressed: () => controller.decreaseTip(),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.add),
+                          onPressed: () => controller.increaseTip(),
+                        ),
+                      ],
+                    ),
+                  ),
+                  controller: TextEditingController(text: controller.tip.value.toStringAsFixed(2)),
+                  onChanged: (value) => controller.tip.value = double.tryParse(value) ?? controller.tip.value,
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -238,6 +309,21 @@ class BusinessPaymentView extends GetView<BusinessPaymentController> {
         ));
   }
 
+  Widget _buildTipPercentageButton(String text, double percentage) {
+    return Obx(() => ElevatedButton(
+          onPressed: () => controller.setTipPercentage(percentage),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: controller.selectedTipPercentage.value == percentage ? Colors.blue[700] : Colors.grey[200],
+            foregroundColor: controller.selectedTipPercentage.value == percentage ? Colors.white : Colors.black87,
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          child: Text(text),
+        ));
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -266,7 +352,7 @@ class BusinessPaymentView extends GetView<BusinessPaymentController> {
                           children: [
                             _buildPaymentSection(),
                             Padding(
-                              padding: const EdgeInsets.all(16),
+                              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
                               child: Hero(
                                 tag: 'payment_button',
                                 child: ElevatedButton(

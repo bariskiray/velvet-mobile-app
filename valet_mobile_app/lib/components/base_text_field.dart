@@ -11,6 +11,8 @@ class BaseTextField extends StatefulWidget {
   final void Function(String)? onChanged;
   final bool enabled;
   final bool isPassword;
+  final bool readOnly;
+  final VoidCallback? onTap;
 
   const BaseTextField({
     Key? key,
@@ -24,6 +26,8 @@ class BaseTextField extends StatefulWidget {
     this.onChanged,
     this.enabled = true,
     this.isPassword = false,
+    this.readOnly = false,
+    this.onTap,
   }) : super(key: key);
 
   @override
@@ -47,6 +51,8 @@ class _BaseTextFieldState extends State<BaseTextField> {
         obscureText: widget.isPassword ? _isObscure : widget.obscureText,
         enabled: widget.enabled,
         onChanged: widget.onChanged,
+        readOnly: widget.readOnly,
+        onTap: widget.onTap,
         style: TextStyle(
           color: Colors.grey[800],
           fontSize: 14,

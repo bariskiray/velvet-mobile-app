@@ -19,10 +19,9 @@ class BusinessRegisterController {
       final response = await ApiService.registerBusiness(request);
 
       if (response.statusCode == 200 || response.statusCode == 201) {
-        return {'success': true, 'message': 'Kayıt işlemi başarıyla tamamlandı', 'data': response.data};
+        return {'success': true, 'message': 'Registration completed successfully', 'data': response.data};
       } else {
-        final errorMessage =
-            response.data is Map ? response.data['message'] ?? 'Kayıt işlemi başarısız oldu' : 'Kayıt işlemi başarısız oldu';
+        final errorMessage = response.data is Map ? response.data['message'] ?? 'Registration failed' : 'Registration failed';
 
         return {
           'success': false,
@@ -33,7 +32,7 @@ class BusinessRegisterController {
       print('Register Error: $e');
       return {
         'success': false,
-        'message': 'Bir hata oluştu: $e',
+        'message': 'An error occurred: $e',
       };
     }
   }

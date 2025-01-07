@@ -63,13 +63,13 @@ class ValetLoginController extends GetxController {
         await prefs.setString('valet_credentials', credentials);
         await prefs.setString('valet_email', request.email);
 
-        return {'success': true, 'message': 'Giriş başarılı', 'data': response.data};
+        return {'success': true, 'message': 'Login successful', 'data': response.data};
       } else {
-        final message = response.data is Map ? response.data['message'] ?? 'Giriş başarısız' : 'Giriş başarısız';
+        final message = response.data is Map ? response.data['message'] ?? 'Login failed' : 'Login failed';
         return {'success': false, 'message': message};
       }
     } catch (e) {
-      return {'success': false, 'message': 'Giriş hatası: $e'};
+      return {'success': false, 'message': 'Login error: $e'};
     } finally {
       isLoading.value = false;
     }

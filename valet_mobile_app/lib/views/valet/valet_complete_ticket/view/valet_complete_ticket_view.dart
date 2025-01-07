@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:valet_mobile_app/api_service/api_service.dart';
 import 'package:valet_mobile_app/components/base_text_field.dart';
 import 'package:valet_mobile_app/views/valet/valet_complete_ticket/controller/valet_complete_ticket_controller.dart';
 
@@ -19,6 +20,20 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
         title: const Text('Complete Ticket'),
         backgroundColor: Colors.blue[900],
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (controller.currentPage.value == 1) {
+              controller.pageController.previousPage(
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+              controller.currentPage.value--;
+            } else {
+              Get.back();
+            }
+          },
+        ),
       ),
       body: Obx(() => Column(
             children: [
@@ -328,8 +343,9 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                                 BaseTextField(
                                   controller: controller.parkingSpotController,
                                   labelText: 'Parking Spot',
-                                  hintText: 'Enter parking spot',
-                                  keyboardType: TextInputType.number,
+                                  hintText: 'Select parking spot',
+                                  readOnly: true,
+                                  onTap: () => _showParkingSpotDialog(context),
                                 ),
                                 const SizedBox(height: 16),
                                 BaseTextField(
@@ -372,46 +388,16 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
               // Alt kısım - Butonlar
               Padding(
                 padding: const EdgeInsets.all(20),
-                child: Row(
-                  children: [
-                    if (controller.currentPage.value > 0) ...[
-                      Expanded(
-                        child: OutlinedButton(
-                          onPressed: () => controller.previousPage(),
-                          style: OutlinedButton.styleFrom(
-                            padding: const EdgeInsets.symmetric(vertical: 16),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
-                            ),
-                          ),
-                          child: const Text(
-                            'Back',
-                            style: TextStyle(
-                              fontSize: 18,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                    ],
-                    Expanded(
-                      child: ElevatedButton(
-                        onPressed: controller.isLoading.value
-                            ? null
-                            : () {
-                                if (controller.currentPage.value == 0) {
-                                  controller.nextPage();
-                                } else {
-                                  controller.completeTicket();
-                                }
-                              },
+                child: Obx(() => controller.currentPage.value == 1
+                    ? ElevatedButton(
+                        onPressed: controller.isLoading.value ? null : controller.completeTicket,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.blue[900],
                           padding: const EdgeInsets.symmetric(vertical: 16),
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(30),
                           ),
+                          minimumSize: const Size(double.infinity, 50),
                         ),
                         child: controller.isLoading.value
                             ? const SizedBox(
@@ -422,21 +408,131 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                                   strokeWidth: 2,
                                 ),
                               )
-                            : Text(
-                                controller.currentPage.value == 1 ? 'Complete Ticket' : 'Continue',
-                                style: const TextStyle(
+                            : const Text(
+                                'Complete Ticket',
+                                style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 16,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
-                      ),
-                    ),
-                  ],
-                ),
+                      )
+                    : const SizedBox.shrink()),
               ),
             ],
           )),
+    );
+  }
+
+  void _showParkingSpotDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Select Parking Spot',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Get.back(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                FutureBuilder<List<Map<String, dynamic>>>(
+                  future: ApiService.getParkingSpots(),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                      return const CircularProgressIndicator();
+                    }
+
+                    if (snapshot.hasError) {
+                      return Text('Error: ${snapshot.error}');
+                    }
+
+                    final spots = snapshot.data ?? [];
+
+                    return Container(
+                      height: Get.height * 0.5,
+                      child: GridView.builder(
+                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          mainAxisSpacing: 10,
+                          crossAxisSpacing: 10,
+                          childAspectRatio: 1.5,
+                        ),
+                        itemCount: spots.length,
+                        itemBuilder: (context, index) {
+                          final spot = spots[index];
+                          final spotNumber = spot['spot'].toString();
+                          final isOccupied = spot['isOccupied'] as bool;
+                          final isSelected = controller.parkingSpotController.text == spotNumber;
+
+                          return InkWell(
+                            onTap: isOccupied
+                                ? null
+                                : () {
+                                    controller.parkingSpotController.text = spotNumber;
+                                    Get.back();
+                                  },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors: isOccupied
+                                      ? [Colors.red[200]!, Colors.red[400]!]
+                                      : isSelected
+                                          ? [Colors.blue[900]!, Colors.blue[700]!]
+                                          : [Colors.green[200]!, Colors.green[400]!],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  spotNumber,
+                                  style: TextStyle(
+                                    color: isOccupied || isSelected ? Colors.white : Colors.black87,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 }

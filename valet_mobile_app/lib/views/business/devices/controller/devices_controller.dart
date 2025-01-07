@@ -26,7 +26,7 @@ class DevicesController extends GetxController {
     try {
       final devicesList = await ApiService.getDevices();
 
-      // Her cihaz için vale bilgisini çek
+      // Fetch valet info for each device
       for (var device in devicesList) {
         if (device.valetId != null) {
           try {
@@ -65,16 +65,16 @@ class DevicesController extends GetxController {
         devices.add(newDevice);
         Get.back();
         Get.snackbar(
-          'Başarılı',
-          'Cihaz başarıyla eklendi',
+          'Success',
+          'Device added successfully',
           backgroundColor: Colors.green,
           colorText: Colors.white,
         );
       }
     } catch (e) {
       Get.snackbar(
-        'Hata',
-        'Cihaz eklenirken bir hata oluştu: $e',
+        'Error',
+        'Failed to add device: $e',
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
@@ -88,9 +88,8 @@ class DevicesController extends GetxController {
       isLoading.value = true;
       final response = await ApiService.getValets();
 
-      print('Valets Response: $response'); // Debug için
+      print('Valets Response: $response'); // For debugging
 
-      // API direkt liste döndüğü için response.data['data'] yerine direkt response kullanıyoruz
       valets.value = List<ValetResponse>.from(response);
     } catch (e) {
       print('Fetch Valets Error: $e');
@@ -203,19 +202,18 @@ class DevicesController extends GetxController {
       isLoading.value = true;
       await ApiService.unassignDevice(device.deviceId);
 
-      // Başarılı unassign'dan sonra cihaz listesini güncelle
       await fetchDevices();
 
       Get.snackbar(
-        'Başarılı',
-        'Cihaz ataması başarıyla kaldırıldı',
+        'Success',
+        'Device unassigned successfully',
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
     } catch (e) {
       Get.snackbar(
-        'Hata',
-        'Cihaz ataması kaldırılırken bir hata oluştu: $e',
+        'Error',
+        'Failed to unassign device: $e',
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
@@ -226,12 +224,11 @@ class DevicesController extends GetxController {
 
   Future<void> deleteDevice(Device device) async {
     try {
-      // API çağrısı yapılacak
       devices.remove(device);
       Get.back();
-      Get.snackbar('Başarılı', 'Cihaz silindi');
+      Get.snackbar('Success', 'Device deleted');
     } catch (e) {
-      Get.snackbar('Hata', 'Cihaz silinirken bir hata oluştu');
+      Get.snackbar('Error', 'Failed to delete device');
     }
   }
 }

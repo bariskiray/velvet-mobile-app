@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:math';
 
 import 'package:valet_mobile_app/api_service/api_service.dart';
 
@@ -8,40 +9,56 @@ class ValetHomeController extends GetxController {
   final hasNewAssignment = false.obs;
   final carDetails = Rx<Map<String, dynamic>?>(null);
   final isWorking = true.obs;
+  final parkingSpots = <Map<String, dynamic>>[].obs;
+  final isLoadingSpots = false.obs;
 
   @override
   void onInit() {
     super.onInit();
-    // TODO: Listen to real-time updates for new assignments
-    listenToAssignments();
+    checkForAssignments();
   }
 
-  void listenToAssignments() {
-    // Mock data based on the database table
-    carDetails.value = {
-      'ticketId': '11',
-      'businessId': '1',
-      'openDate': '2024-12-29 21:02:22',
-      'closeDate': null,
-      'progressStatus': '1',
-      'note': null,
-      'parkingSpot': null,
-      'damage': null,
-      'carId': null,
-      'valetId': '1',
-      // Additional car details that would come from car table
-      'brand': 'BMW',
-      'plate': '34ABC123',
-      'color': 'Black',
-      'location': '56' // This would come from parking_spot table
-    };
-    hasNewAssignment.value = true;
+  Future<void> checkForAssignments() async {
+    try {
+      final closedTickets = await ApiService.getClosedTickets();
+      print('Closed Tickets: $closedTickets'); // Debug log
+
+      final assignedTicket = closedTickets.firstWhereOrNull((ticket) => ticket['progress_status'] == 3);
+      print('Assigned Ticket: $assignedTicket'); // Debug log
+
+      if (assignedTicket != null) {
+        final car = assignedTicket['car'] as Map<String, dynamic>;
+        print('Car Details: $car'); // Debug log
+
+        carDetails.value = {
+          'ticketId': assignedTicket['ticket_id'].toString(),
+          'brand': car['brand'],
+          'plate': car['license_plate'],
+          'color': car['color'],
+          'location': assignedTicket['parking_spot'].toString(),
+        };
+        print('Set Car Details: ${carDetails.value}'); // Debug log
+
+        hasNewAssignment.value = true;
+        print('Has New Assignment: ${hasNewAssignment.value}'); // Debug log
+      } else {
+        hasNewAssignment.value = false;
+        carDetails.value = null;
+        print('No Assignment Found'); // Debug log
+      }
+    } catch (e) {
+      print('Check Assignments Error: $e');
+      hasNewAssignment.value = false;
+      carDetails.value = null;
+    }
   }
 
   Future<void> confirmCarDelivery() async {
     try {
-      // TODO: API integration will be added
-      await Future.delayed(Duration(milliseconds: 500));
+      if (carDetails.value == null) return;
+
+      await ApiService.deliverCar(int.parse(carDetails.value!['ticketId']));
+
       hasNewAssignment.value = false;
       carDetails.value = null;
       Get.back();
@@ -51,10 +68,13 @@ class ValetHomeController extends GetxController {
         backgroundColor: Colors.green,
         colorText: Colors.white,
       );
+
+      // Check new status
+      await checkForAssignments();
     } catch (e) {
       Get.snackbar(
         'Error',
-        'Failed to confirm delivery',
+        'Car delivery failed: ${e.toString()}',
         backgroundColor: Colors.red,
         colorText: Colors.white,
       );
@@ -164,5 +184,108 @@ class ValetHomeController extends GetxController {
         colorText: Colors.white,
       );
     }
+  }
+
+  Future<void> fetchParkingSpots() async {
+    try {
+      isLoadingSpots.value = true;
+
+      final spots = await ApiService.getParkingSpots();
+      parkingSpots.value = spots;
+    } catch (e) {
+      print('Fetch Parking Spots Error: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to load parking spots',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoadingSpots.value = false;
+    }
+  }
+
+  void showParkingSpotsDialog() {
+    fetchParkingSpots().then((_) {
+      Get.dialog(
+        Dialog(
+          backgroundColor: Colors.transparent,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Available Parking Spots',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.blue[900],
+                      ),
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Get.back(),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                Obx(() => isLoadingSpots.value
+                    ? const CircularProgressIndicator()
+                    : Container(
+                        height: Get.height * 0.5,
+                        child: GridView.builder(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 1.5,
+                          ),
+                          itemCount: parkingSpots.length,
+                          itemBuilder: (context, index) {
+                            final spot = parkingSpots[index];
+                            return Container(
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                  colors:
+                                      spot['isOccupied'] ? [Colors.red[200]!, Colors.red[400]!] : [Colors.green[200]!, Colors.green[400]!],
+                                ),
+                                borderRadius: BorderRadius.circular(10),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 4,
+                                    offset: const Offset(0, 2),
+                                  ),
+                                ],
+                              ),
+                              child: Center(
+                                child: Text(
+                                  spot['spot'].toString(),
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
+                      )),
+              ],
+            ),
+          ),
+        ),
+      );
+    });
   }
 }

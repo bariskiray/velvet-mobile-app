@@ -4,6 +4,7 @@ class BusinessPaymentModel {
   final double amount;
   final String paymentMethod;
   final String ticketId;
+  final double tip;
 
   BusinessPaymentModel({
     this.paymentId,
@@ -11,6 +12,7 @@ class BusinessPaymentModel {
     required this.amount,
     required this.paymentMethod,
     required this.ticketId,
+    required this.tip,
   });
 
   // JSON'dan model oluşturma
@@ -21,6 +23,7 @@ class BusinessPaymentModel {
       amount: json['amount']?.toDouble() ?? 0.0,
       paymentMethod: json['payment_method'] ?? '',
       ticketId: json['ticket_id'] ?? '',
+      tip: json['tip']?.toDouble() ?? 0.0,
     );
   }
 
@@ -32,6 +35,7 @@ class BusinessPaymentModel {
       'amount': amount,
       'payment_method': paymentMethod,
       'ticket_id': ticketId,
+      'tip': tip,
     };
   }
 }

@@ -65,7 +65,7 @@ class _BusinessRegisterViewState extends State<BusinessRegisterView> {
       if (mounted) {
         setState(() {
           _isLoading = false;
-          _errorMessage = 'Bir hata oluştu: $e';
+          _errorMessage = 'An error occurred: $e';
         });
       }
     }

@@ -40,7 +40,7 @@ class BusinessDevicesView extends StatelessWidget {
               child: Obx(
                 () => controller.devices.isEmpty
                     ? Center(
-                        child: Text('Henüz cihaz eklenmemiş'),
+                        child: Text('No devices added yet'),
                       )
                     : ListView.builder(
                         itemCount: controller.devices.length,

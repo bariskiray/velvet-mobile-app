@@ -145,8 +145,8 @@ class _LoginButton extends StatelessWidget {
                       Get.off(() => const ValetHomeView());
                     } else {
                       Get.snackbar(
-                        'Hata',
-                        result['message'] ?? 'Giriş başarısız',
+                        'Error',
+                        result['message'] ?? 'Login failed',
                         backgroundColor: Colors.red,
                         colorText: Colors.white,
                         snackPosition: SnackPosition.BOTTOM,
@@ -170,7 +170,7 @@ class _LoginButton extends StatelessWidget {
                   child: CircularProgressIndicator(strokeWidth: 2),
                 )
               : const Text(
-                  'Giriş Yap',
+                  'Login',
                   style: TextStyle(fontSize: 18.0),
                 ),
         ));
