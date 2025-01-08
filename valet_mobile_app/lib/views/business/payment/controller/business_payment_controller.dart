@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:valet_mobile_app/api_service/api_service.dart';
+import 'package:valet_mobile_app/views/business/business_home/view/business_home_view.dart';
 import 'package:valet_mobile_app/views/business/payment/model/business_payment_model.dart';
 
 class BusinessPaymentController extends GetxController {
@@ -89,11 +90,36 @@ class BusinessPaymentController extends GetxController {
 
       print('Payment successful: ${payment.toJson()}');
 
-      Get.snackbar('Success', 'Payment completed');
       resetValues();
-      Get.back();
+
+      // Başarılı ödeme snackbar'ı
+      await Get.snackbar(
+        'Success',
+        'Payment Completed',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+        icon: const Icon(Icons.check_circle, color: Colors.white),
+        snackPosition: SnackPosition.TOP,
+        boxShadows: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.2),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+        margin: const EdgeInsets.all(10),
+      );
     } catch (e) {
-      Get.snackbar('Error', 'Payment failed: ${e.toString()}');
+      Get.snackbar(
+        'Payment Failed',
+        'Error: ${e.toString()}',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+        icon: const Icon(Icons.error_outline, color: Colors.white),
+        duration: const Duration(seconds: 4),
+      );
     } finally {
       isLoading.value = false;
     }

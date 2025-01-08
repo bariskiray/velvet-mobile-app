@@ -9,11 +9,24 @@ class ValetListView extends GetView<BusinessHomeController> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Valet List'),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+          ),
+          onPressed: () => Get.back(),
+        ),
+        title: const Text(
+          'Valet List',
+          style: TextStyle(
+            color: Colors.white,
+          ),
+        ),
         backgroundColor: Colors.blue[900],
         actions: [
           IconButton(
             icon: const Icon(Icons.refresh),
+            color: Colors.white,
             onPressed: controller.fetchValets,
           ),
         ],
@@ -103,9 +116,14 @@ class ValetListView extends GetView<BusinessHomeController> {
                           children: [
                             const Icon(Icons.email, color: Colors.white70, size: 16),
                             const SizedBox(width: 8),
-                            Text(
-                              valet.email,
-                              style: const TextStyle(color: Colors.white70),
+                            Expanded(
+                              child: Text(
+                                valet.email,
+                                style: const TextStyle(
+                                  color: Colors.white70,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ),
                             ),
                           ],
                         ),
@@ -115,9 +133,14 @@ class ValetListView extends GetView<BusinessHomeController> {
                             children: [
                               const Icon(Icons.phone, color: Colors.white70, size: 16),
                               const SizedBox(width: 8),
-                              Text(
-                                valet.phoneNumber!,
-                                style: const TextStyle(color: Colors.white70),
+                              Expanded(
+                                child: Text(
+                                  valet.phoneNumber!,
+                                  style: const TextStyle(
+                                    color: Colors.white70,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
                               ),
                             ],
                           ),

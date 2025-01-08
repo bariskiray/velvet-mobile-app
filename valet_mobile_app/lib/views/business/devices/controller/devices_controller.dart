@@ -9,6 +9,8 @@ class DevicesController extends GetxController {
   final RxBool isLoading = false.obs;
   final valets = <ValetResponse>[].obs;
   final selectedValetId = RxnInt();
+  final RxList deviceLogs = [].obs;
+  final RxBool isLoadingLogs = false.obs;
 
   @override
   void onInit() {
@@ -229,6 +231,35 @@ class DevicesController extends GetxController {
       Get.snackbar('Success', 'Device deleted');
     } catch (e) {
       Get.snackbar('Error', 'Failed to delete device');
+    }
+  }
+
+  Future<void> fetchDeviceLogs(int deviceId) async {
+    try {
+      isLoadingLogs.value = true;
+      final logs = await ApiService.getDeviceLogs(deviceId);
+
+      // Her log için vale bilgilerini al
+      for (var log in logs) {
+        try {
+          final valetInfo = await ApiService.getValetById(log['valet_id']);
+          log['valet_name'] = valetInfo['valet_name'];
+          log['valet_surname'] = valetInfo['valet_surname'];
+        } catch (e) {
+          print('Error fetching valet info for log: $e');
+        }
+      }
+
+      deviceLogs.assignAll(logs);
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to load device logs: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoadingLogs.value = false;
     }
   }
 }

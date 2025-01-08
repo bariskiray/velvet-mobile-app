@@ -15,7 +15,19 @@ class ValetCreateTicketView extends GetView<ValetCreateTicketController> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Create Ticket'),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+          ),
+          onPressed: () => Get.back(),
+        ),
+        title: const Text(
+          'Create Ticket',
+          style: TextStyle(
+            color: Colors.white,
+          ),
+        ),
         backgroundColor: Colors.blue[900],
         elevation: 0,
       ),

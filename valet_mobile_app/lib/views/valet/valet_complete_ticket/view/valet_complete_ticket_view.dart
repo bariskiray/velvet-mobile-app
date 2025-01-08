@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:valet_mobile_app/api_service/api_service.dart';
@@ -17,11 +19,15 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
     return Scaffold(
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
-        title: const Text('Complete Ticket'),
+        title: const Text(
+          'Complete Ticket',
+          style: TextStyle(color: Colors.white),
+        ),
         backgroundColor: Colors.blue[900],
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
+          color: Colors.white,
           onPressed: () {
             if (controller.currentPage.value == 1) {
               controller.pageController.previousPage(
@@ -251,14 +257,17 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                               padding: const EdgeInsets.symmetric(horizontal: 20),
                               child: Stack(
                                 children: [
-                                  Container(
-                                    height: 200,
-                                    width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      borderRadius: BorderRadius.circular(15),
-                                      image: DecorationImage(
-                                        image: FileImage(controller.selectedImage.value!),
-                                        fit: BoxFit.cover,
+                                  InkWell(
+                                    onTap: () => _showFullScreenImage(context, controller.selectedImage.value!),
+                                    child: Container(
+                                      height: 200,
+                                      width: double.infinity,
+                                      decoration: BoxDecoration(
+                                        borderRadius: BorderRadius.circular(15),
+                                        image: DecorationImage(
+                                          image: FileImage(controller.selectedImage.value!),
+                                          fit: BoxFit.cover,
+                                        ),
                                       ),
                                     ),
                                   ),
@@ -530,6 +539,45 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                 ),
               ],
             ),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showFullScreenImage(BuildContext context, File image) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          backgroundColor: Colors.transparent,
+          insetPadding: EdgeInsets.zero,
+          child: Stack(
+            children: [
+              InteractiveViewer(
+                panEnabled: true,
+                minScale: 0.5,
+                maxScale: 4,
+                child: Image.file(
+                  image,
+                  fit: BoxFit.contain,
+                  height: Get.height,
+                  width: Get.width,
+                ),
+              ),
+              Positioned(
+                top: 40,
+                right: 20,
+                child: IconButton(
+                  icon: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: 30,
+                  ),
+                  onPressed: () => Get.back(),
+                ),
+              ),
+            ],
           ),
         );
       },

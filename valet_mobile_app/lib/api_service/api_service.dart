@@ -1083,4 +1083,37 @@ class ApiService {
       rethrow;
     }
   }
+
+  static Future<List<dynamic>> getDeviceLogs(int deviceId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/devices/$deviceId/logs',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Get Device Logs Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as List<dynamic>;
+      } else {
+        throw Exception('Failed to get device logs: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Device Logs Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
 }

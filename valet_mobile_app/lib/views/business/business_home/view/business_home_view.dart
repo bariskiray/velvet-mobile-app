@@ -19,7 +19,19 @@ class BusinessHomeView extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Business Panel'),
+        title: const Text(
+          'Business Panel',
+          style: TextStyle(
+            color: Colors.white,
+          ),
+        ),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+          ),
+          onPressed: () => Get.back(),
+        ),
         backgroundColor: Colors.blue[900],
         elevation: 0,
         actions: [

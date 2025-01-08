@@ -110,7 +110,6 @@ class BusinessDevicesView extends StatelessWidget {
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Device ID: ${device.deviceId}'),
             if (device.isAssigned) ...[
               SizedBox(height: 4),
               Row(
@@ -119,7 +118,7 @@ class BusinessDevicesView extends StatelessWidget {
                   SizedBox(width: 4),
                   Expanded(
                     child: Text(
-                      '${device.valetId} - ${device.valetName ?? 'Loading...'}',
+                      device.valetName ?? 'Loading...',
                       style: TextStyle(
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -142,6 +141,11 @@ class BusinessDevicesView extends StatelessWidget {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
+                    TextButton.icon(
+                      onPressed: () => _showDeviceLogs(device),
+                      icon: Icon(Icons.history),
+                      label: Text('Logs'),
+                    ),
                     TextButton(
                       onPressed: () => device.isAssigned ? _showUnassignConfirmation(device) : controller.showAssignDialog(device),
                       child: Text(device.isAssigned ? 'Unassign' : 'Assign Valet'),
@@ -309,5 +313,130 @@ class BusinessDevicesView extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  void _showDeviceLogs(Device device) {
+    controller.fetchDeviceLogs(device.deviceId);
+
+    Get.dialog(
+      AlertDialog(
+        title: Text('Device Logs'),
+        content: Container(
+          width: double.maxFinite,
+          height: 400,
+          child: Obx(() {
+            if (controller.isLoadingLogs.value) {
+              return Center(child: CircularProgressIndicator());
+            }
+
+            if (controller.deviceLogs.isEmpty) {
+              return Center(child: Text('No logs found'));
+            }
+
+            return ListView.builder(
+              itemCount: controller.deviceLogs.length,
+              itemBuilder: (context, index) {
+                final log = controller.deviceLogs[index];
+                final assignDate = DateTime.parse(log['assign_date']);
+                final unassignDate = log['unassign_date'] != null ? DateTime.parse(log['unassign_date']) : null;
+
+                return Card(
+                  margin: EdgeInsets.symmetric(vertical: 6),
+                  elevation: 2,
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border(
+                        left: BorderSide(
+                          color: unassignDate == null ? Colors.green : Colors.blue,
+                          width: 4,
+                        ),
+                      ),
+                    ),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: unassignDate == null ? Colors.green.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                        child: Icon(
+                          unassignDate == null ? Icons.check_circle : Icons.history,
+                          color: unassignDate == null ? Colors.green : Colors.blue,
+                        ),
+                      ),
+                      title: Text(
+                        'Log #${log['log_id']}',
+                        style: TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: Colors.black87,
+                        ),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Assigned: ${assignDate.toString().split('.')[0]}'),
+                          if (unassignDate != null) Text('Unassigned: ${unassignDate.toString().split('.')[0]}'),
+                          Text(
+                              'Valet: ${log['valet_name'] != null && log['valet_surname'] != null ? '${log['valet_name']} ${log['valet_surname']}' : 'Valet #${log['valet_id']}'}'),
+                          Text('Status: ${unassignDate == null ? 'Active' : 'Completed'}'),
+                        ],
+                      ),
+                      trailing: Container(
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: unassignDate == null ? Colors.green : Colors.grey,
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            );
+          }),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('Close'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLogInfoRow(String label, String value, IconData icon) {
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          Icon(icon, size: 16, color: Colors.grey[600]),
+          SizedBox(width: 8),
+          Text(
+            '$label:',
+            style: TextStyle(
+              color: Colors.grey[600],
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+          SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              value,
+              style: TextStyle(
+                color: Colors.black87,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  String _formatDateTime(DateTime dateTime) {
+    // Implement date formatting logic here
+    return dateTime.toString();
+  }
+
+  String _calculateDuration(DateTime start, DateTime? end) {
+    // Implement duration calculation logic here
+    return '0 days';
   }
 }

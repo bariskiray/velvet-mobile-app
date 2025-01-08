@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:valet_mobile_app/views/business/business_home/view/business_home_view.dart';
 import 'package:valet_mobile_app/views/valet/valet_login/view/valet_login_view.dart';
 import '../../../../components/custom_password_field.dart';
 import '../../../../components/custom_text_field.dart';
@@ -151,7 +152,7 @@ class ValetRegisterView extends StatelessWidget {
           snackPosition: SnackPosition.TOP,
         );
         await Future.delayed(const Duration(seconds: 2));
-        Get.off(() => ValetLoginView());
+        Get.off(() => const BusinessHomeView());
       } else {
         Get.snackbar(
           'Error',

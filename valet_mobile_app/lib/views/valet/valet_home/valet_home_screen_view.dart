@@ -54,7 +54,20 @@ class _ValetHomeViewState extends State<ValetHomeView> with SingleTickerProvider
       backgroundColor: Colors.grey[100],
       appBar: AppBar(
         elevation: 0,
-        title: const Text('Valet Panel', style: TextStyle(fontWeight: FontWeight.bold)),
+        leading: IconButton(
+          icon: const Icon(
+            Icons.arrow_back,
+            color: Colors.white,
+          ),
+          onPressed: () => Get.back(),
+        ),
+        title: const Text(
+          'Valet Panel',
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            color: Colors.white,
+          ),
+        ),
         backgroundColor: Colors.blue[900],
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(bottom: Radius.circular(15))),
         actions: [
