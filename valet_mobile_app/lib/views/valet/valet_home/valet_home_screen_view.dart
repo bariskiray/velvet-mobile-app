@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:get/get_core/src/get_main.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:valet_mobile_app/views/valet/valet_complete_ticket/controller/valet_complete_ticket_controller.dart';
 import 'package:valet_mobile_app/views/valet/valet_complete_ticket/view/valet_complete_ticket_view.dart';
 import 'package:valet_mobile_app/views/valet/valet_create_ticket/controller/valet_create_ticket_controller.dart';
@@ -88,92 +89,100 @@ class _ValetHomeViewState extends State<ValetHomeView> with SingleTickerProvider
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            children: [
-              const SizedBox(height: 20),
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: Row(
-                    children: [
-                      Icon(
-                        Icons.directions_car_rounded,
-                        size: 32,
-                        color: Colors.blue[900],
-                      ),
-                      const SizedBox(width: 15),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+        child: RefreshIndicator(
+          onRefresh: () async {
+            await controller.checkForAssignments();
+          },
+          child: SingleChildScrollView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            child: Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                children: [
+                  const SizedBox(height: 20),
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: Row(
                         children: [
-                          Text(
-                            'Welcome Back',
-                            style: TextStyle(
-                              color: Colors.grey[600],
-                              fontSize: 16,
-                              fontWeight: FontWeight.w500,
-                            ),
+                          Icon(
+                            Icons.directions_car_rounded,
+                            size: 32,
+                            color: Colors.blue[900],
                           ),
-                          const SizedBox(height: 4),
-                          Text(
-                            'Valet Service',
-                            style: TextStyle(
-                              color: Colors.blue[900],
-                              fontSize: 24,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
+                          const SizedBox(width: 15),
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'Welcome Back',
+                                style: TextStyle(
+                                  color: Colors.grey[600],
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                ),
+                              ),
+                              const SizedBox(height: 4),
+                              Text(
+                                'Valet Service',
+                                style: TextStyle(
+                                  color: Colors.blue[900],
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 0.5,
+                                ),
+                              ),
+                            ],
                           ),
                         ],
                       ),
-                    ],
-                  ),
-                ),
-              ),
-              Obx(() => AnimatedSlide(
-                    duration: const Duration(milliseconds: 500),
-                    offset: controller.hasNewAssignment.value ? Offset.zero : const Offset(0, -2),
-                    child: AnimatedOpacity(
-                      duration: const Duration(milliseconds: 500),
-                      opacity: controller.hasNewAssignment.value ? 1 : 0,
-                      child: controller.hasNewAssignment.value ? _buildNewAssignmentCard() : const SizedBox.shrink(),
                     ),
-                  )),
-              const SizedBox(height: 50),
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: _buildActionButton(
-                    title: 'Create Ticket',
-                    icon: Icons.add_circle_outline,
-                    color: Colors.blue[900]!,
-                    onPressed: () {
-                      Get.put(ValetCreateTicketController());
-                      Get.to(() => const ValetCreateTicketView());
-                    },
                   ),
-                ),
-              ),
-              const SizedBox(height: 20),
-              FadeTransition(
-                opacity: _fadeAnimation,
-                child: SlideTransition(
-                  position: _slideAnimation,
-                  child: _buildActionButton(
-                    title: 'Complete Ticket',
-                    icon: Icons.check_circle_outline,
-                    color: Colors.green[700]!,
-                    onPressed: () {
-                      Get.put(ValetCompleteTicketController());
-                      Get.to(() => const ValetCompleteTicketView());
-                    },
+                  Obx(() => AnimatedSlide(
+                        duration: const Duration(milliseconds: 500),
+                        offset: controller.hasNewAssignment.value ? Offset.zero : const Offset(0, -2),
+                        child: AnimatedOpacity(
+                          duration: const Duration(milliseconds: 500),
+                          opacity: controller.hasNewAssignment.value ? 1 : 0,
+                          child: controller.hasNewAssignment.value ? _buildNewAssignmentCard() : const SizedBox.shrink(),
+                        ),
+                      )),
+                  const SizedBox(height: 50),
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: _buildActionButton(
+                        title: 'Create Ticket',
+                        icon: Icons.add_circle_outline,
+                        color: Colors.blue[900]!,
+                        onPressed: () {
+                          Get.put(ValetCreateTicketController());
+                          Get.to(() => const ValetCreateTicketView());
+                        },
+                      ),
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 20),
+                  FadeTransition(
+                    opacity: _fadeAnimation,
+                    child: SlideTransition(
+                      position: _slideAnimation,
+                      child: _buildActionButton(
+                        title: 'Complete Ticket',
+                        icon: Icons.check_circle_outline,
+                        color: Colors.green[700]!,
+                        onPressed: () {
+                          Get.put(ValetCompleteTicketController());
+                          Get.to(() => const ValetCompleteTicketView());
+                        },
+                      ),
+                    ),
+                  ),
+                ],
               ),
-            ],
+            ),
           ),
         ),
       ),
@@ -283,7 +292,7 @@ class _ValetHomeViewState extends State<ValetHomeView> with SingleTickerProvider
                       ),
                       const SizedBox(height: 4),
                       Obx(() => Text(
-                            'Location: ${controller.carDetails.value?['location'] ?? ''}',
+                            'Location: ${controller.carDetails.value?['locationName'] ?? ''}',
                             style: const TextStyle(
                               color: Colors.white70,
                               fontSize: 14,
@@ -364,41 +373,86 @@ class _ValetHomeViewState extends State<ValetHomeView> with SingleTickerProvider
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.all(20),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildDetailRow('Brand', '${controller.carDetails.value?['brand']}'),
-                    _buildDetailRow('Plate', controller.carDetails.value?['plate'] ?? ''),
-                    _buildDetailRow('Color', controller.carDetails.value?['color'] ?? ''),
-                    _buildDetailRow('Location', controller.carDetails.value?['location'] ?? ''),
-                    _buildDetailRow('Ticket ID', controller.carDetails.value?['ticketId'] ?? ''),
-                    const SizedBox(height: 20),
-                    Obx(() => CheckboxListTile(
-                          value: isConfirmed.value,
-                          onChanged: (value) => isConfirmed.value = value!,
-                          title: const Text('I confirm that I delivered the car to the customer.'),
-                          controlAffinity: ListTileControlAffinity.leading,
-                          activeColor: Colors.blue[700],
-                          contentPadding: EdgeInsets.zero,
-                        )),
-                    const SizedBox(height: 20),
-                    SizedBox(
-                      width: double.infinity,
-                      child: Obx(() => ElevatedButton(
-                            onPressed: isConfirmed.value ? () => controller.confirmCarDelivery() : null,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.blue[700],
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
+              SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _buildDetailRow('Brand', '${controller.carDetails.value?['brand']}'),
+                      _buildDetailRow('Plate', controller.carDetails.value?['plate'] ?? ''),
+                      _buildDetailRow('Color', controller.carDetails.value?['color'] ?? ''),
+                      _buildDetailRow('Location', controller.carDetails.value?['locationName'] ?? ''),
+                      _buildDetailRow('Ticket ID', controller.carDetails.value?['ticketId'] ?? ''),
+                      const SizedBox(height: 20),
+
+                      // Map Container
+                      Container(
+                        height: 200,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(color: Colors.grey.shade300, width: 1),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.grey.withOpacity(0.2),
+                              blurRadius: 5,
+                              offset: const Offset(0, 3),
                             ),
-                            child: const Text('Confirm Delivery'),
+                          ],
+                        ),
+                        clipBehavior: Clip.antiAlias,
+                        child: Obx(
+                          () => controller.isLoadingLocation.value
+                              ? const Center(child: CircularProgressIndicator())
+                              : controller.selectedLocation.value != null
+                                  ? GoogleMap(
+                                      initialCameraPosition: CameraPosition(
+                                        target: controller.selectedLocation.value!,
+                                        zoom: 17.0,
+                                      ),
+                                      markers: controller.markers.value,
+                                      mapType: MapType.normal,
+                                      onMapCreated: controller.onMapCreated,
+                                      myLocationEnabled: true,
+                                      myLocationButtonEnabled: true,
+                                      zoomControlsEnabled: true,
+                                      compassEnabled: true,
+                                    )
+                                  : Center(
+                                      child: Text(
+                                        'No location information found',
+                                        style: TextStyle(color: Colors.grey[600]),
+                                      ),
+                                    ),
+                        ),
+                      ),
+
+                      const SizedBox(height: 20),
+                      Obx(() => CheckboxListTile(
+                            value: isConfirmed.value,
+                            onChanged: (value) => isConfirmed.value = value!,
+                            title: const Text('I confirm that I delivered the car to the customer.'),
+                            controlAffinity: ListTileControlAffinity.leading,
+                            activeColor: Colors.blue[700],
+                            contentPadding: EdgeInsets.zero,
                           )),
-                    ),
-                  ],
+                      const SizedBox(height: 20),
+                      SizedBox(
+                        width: double.infinity,
+                        child: Obx(() => ElevatedButton(
+                              onPressed: isConfirmed.value ? () => controller.confirmCarDelivery() : null,
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue[700],
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                shape: RoundedRectangleBorder(
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                              ),
+                              child: const Text('Confirm Delivery'),
+                            )),
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],

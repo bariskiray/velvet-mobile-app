@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:valet_mobile_app/api_service/api_service.dart';
 import 'package:valet_mobile_app/components/base_text_field.dart';
 import 'package:valet_mobile_app/views/valet/valet_complete_ticket/controller/valet_complete_ticket_controller.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
 
 class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
   const ValetCompleteTicketView({super.key});
@@ -86,7 +87,26 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                             ),
                           ),
                           const SizedBox(height: 20),
-                          if (controller.ticketIdController.text.isEmpty)
+                          if (controller.isLoading.value)
+                            const Padding(
+                              padding: EdgeInsets.all(20),
+                              child: Center(
+                                child: Column(
+                                  children: [
+                                    CircularProgressIndicator(),
+                                    SizedBox(height: 16),
+                                    Text(
+                                      'Loading tickets...',
+                                      style: TextStyle(
+                                        fontSize: 16,
+                                        color: Colors.grey,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            )
+                          else if (controller.ticketId.value.isEmpty)
                             Padding(
                               padding: const EdgeInsets.all(20),
                               child: Column(
@@ -153,7 +173,7 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                                                 crossAxisAlignment: CrossAxisAlignment.start,
                                                 children: [
                                                   Text(
-                                                    'Ticket #${controller.ticketIdController.text}',
+                                                    'Ticket #${controller.ticketId.value}',
                                                     style: const TextStyle(
                                                       fontSize: 20,
                                                       fontWeight: FontWeight.bold,
@@ -452,11 +472,25 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    const Text(
-                      'Select Parking Spot',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Select Parking Spot',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          Obx(() => Text(
+                                '${controller.parkingLocations.length} parking spots${controller.hasMoreParkingData.value ? ' (loading more...)' : ''}',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: Colors.grey[600],
+                                ),
+                              )),
+                        ],
                       ),
                     ),
                     IconButton(
@@ -466,73 +500,99 @@ class ValetCompleteTicketView extends GetView<ValetCompleteTicketController> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                FutureBuilder<List<Map<String, dynamic>>>(
-                  future: ApiService.getParkingSpots(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
+                Obx(
+                  () {
+                    if (controller.isLoading.value) {
                       return const CircularProgressIndicator();
                     }
 
-                    if (snapshot.hasError) {
-                      return Text('Error: ${snapshot.error}');
-                    }
-
-                    final spots = snapshot.data ?? [];
+                    final spots = controller.parkingLocations;
 
                     return Container(
                       height: Get.height * 0.5,
-                      child: GridView.builder(
-                        gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          mainAxisSpacing: 10,
-                          crossAxisSpacing: 10,
-                          childAspectRatio: 1.5,
-                        ),
-                        itemCount: spots.length,
-                        itemBuilder: (context, index) {
-                          final spot = spots[index];
-                          final spotNumber = spot['spot'].toString();
-                          final isOccupied = spot['isOccupied'] as bool;
-                          final isSelected = controller.parkingSpotController.text == spotNumber;
-
-                          return InkWell(
-                            onTap: isOccupied
-                                ? null
-                                : () {
-                                    controller.parkingSpotController.text = spotNumber;
-                                    Get.back();
-                                  },
-                            child: Container(
-                              decoration: BoxDecoration(
-                                gradient: LinearGradient(
-                                  colors: isOccupied
-                                      ? [Colors.red[200]!, Colors.red[400]!]
-                                      : isSelected
-                                          ? [Colors.blue[900]!, Colors.blue[700]!]
-                                          : [Colors.green[200]!, Colors.green[400]!],
-                                ),
-                                borderRadius: BorderRadius.circular(10),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 4,
-                                    offset: const Offset(0, 2),
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Text(
-                                  spotNumber,
-                                  style: TextStyle(
-                                    color: isOccupied || isSelected ? Colors.white : Colors.black87,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                            ),
-                          );
+                      child: NotificationListener<ScrollNotification>(
+                        onNotification: (ScrollNotification scrollInfo) {
+                          // Sayfa sonuna ulaşıldığında daha fazla veri yükle
+                          if (scrollInfo.metrics.pixels == scrollInfo.metrics.maxScrollExtent) {
+                            if (controller.hasMoreParkingData.value && !controller.isLoadingMoreParking.value) {
+                              controller.loadMoreParkingLocations();
+                            }
+                          }
+                          return false;
                         },
+                        child: GridView.builder(
+                          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            mainAxisSpacing: 10,
+                            crossAxisSpacing: 10,
+                            childAspectRatio: 1.5,
+                          ),
+                          itemCount: spots.length + (controller.hasMoreParkingData.value ? 1 : 0),
+                          itemBuilder: (context, index) {
+                            // Eğer bu son item ise ve daha fazla veri varsa loading göster
+                            if (index == spots.length) {
+                              return Container(
+                                padding: const EdgeInsets.all(10),
+                                child: const Center(
+                                  child: SizedBox(
+                                    width: 20,
+                                    height: 20,
+                                    child: CircularProgressIndicator(strokeWidth: 2),
+                                  ),
+                                ),
+                              );
+                            }
+
+                            final spot = spots[index];
+                            final spotNumber = spot['name'];
+                            final spotId = spot['parking_location_id'];
+                            final isOccupied = !spot['is_empty'];
+                            final isSelected = controller.parkingSpotController.text == spotNumber;
+
+                            print('Showing parking location: $spotNumber - ID: $spotId');
+
+                            return InkWell(
+                              onTap: isOccupied
+                                  ? null
+                                  : () {
+                                      // Park yeri seçildiğinde controller'a bilgileri aktar
+                                      controller.parkingSpotController.text = spotNumber;
+                                      controller.selectParkingLocation(
+                                          {"parking_location_id": spot['parking_location_id'], "name": spot['name']});
+                                      Get.back();
+                                    },
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                    colors: isOccupied
+                                        ? [Colors.red[200]!, Colors.red[400]!]
+                                        : isSelected
+                                            ? [Colors.blue[900]!, Colors.blue[700]!]
+                                            : [Colors.green[200]!, Colors.green[400]!],
+                                  ),
+                                  borderRadius: BorderRadius.circular(10),
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: Colors.black.withOpacity(0.1),
+                                      blurRadius: 4,
+                                      offset: const Offset(0, 2),
+                                    ),
+                                  ],
+                                ),
+                                child: Center(
+                                  child: Text(
+                                    spot['name'],
+                                    style: TextStyle(
+                                      color: isOccupied || isSelected ? Colors.white : Colors.black87,
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            );
+                          },
+                        ),
                       ),
                     );
                   },

@@ -5,9 +5,11 @@
 *.swp
 .DS_Store
 .atom/
+.build/
 .buildlog/
 .history
 .svn/
+.swiftpm/
 migrate_working_dir/
 
 # IntelliJ related
@@ -41,3 +43,16 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Firebase config files (contain API keys — add your own)
+android/app/google-services.json
+ios/Runner/GoogleService-Info.plist
+
+# VSCode
+.vscode/
+
+# Android NDK build cache
+android/app/.cxx/
+
+# Generated files
+generate_statistics_data.py

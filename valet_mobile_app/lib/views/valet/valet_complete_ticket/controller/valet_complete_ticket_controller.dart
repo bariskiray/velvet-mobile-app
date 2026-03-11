@@ -7,6 +7,8 @@ import 'package:dio/dio.dart';
 import 'package:http_parser/http_parser.dart';
 import 'package:valet_mobile_app/api_service/api_service.dart';
 import 'package:valet_mobile_app/views/valet/valet_complete_ticket/model/valet_complete_ticket_model.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 class ValetCompleteTicketController extends GetxController {
   // Text editing controllers
@@ -40,65 +42,50 @@ class ValetCompleteTicketController extends GetxController {
   final parkingSpotController = TextEditingController();
   final isDamaged = false.obs;
 
+  // Park yeri için yeni kontroller
+  final parkingLocationNameController = TextEditingController();
+  final selectedParkingLocationId = Rx<int?>(null);
+
+  // Park yerleri için veri saklama
+  final parkingLocations = <Map<String, dynamic>>[].obs;
+
+  // Pagination değişkenleri
+  final currentParkingPage = 1.obs;
+  final hasMoreParkingData = true.obs;
+  final isLoadingMoreParking = false.obs;
+  final parkingPageSize = 50; // Daha fazla park yeri göstermek için sayıyı artırdık
+
+  // Seçilen park yeri
+  final selectedParkingLocation = Rx<Map<String, dynamic>?>(null);
+
   // Açık bilet bilgilerini tutmak için
   final hasOpenTicket = false.obs;
   final openTicketId = ''.obs;
+
+  // Reactive ticket ID
+  final ticketId = ''.obs;
 
   // Form validation
   bool validateForm() {
     if (ticketIdController.text.isEmpty) {
       errorMessage.value = 'Ticket ID is required';
-      Get.snackbar(
-        'Error',
-        errorMessage.value,
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
       return false;
     }
     if (licensePlateController.text.isEmpty) {
       errorMessage.value = 'License plate is required';
-      Get.snackbar(
-        'Error',
-        errorMessage.value,
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
       return false;
     }
     if (brandController.text.isEmpty) {
       errorMessage.value = 'Brand is required';
-      Get.snackbar(
-        'Error',
-        errorMessage.value,
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
       return false;
     }
     if (colorController.text.isEmpty) {
       errorMessage.value = 'Color is required';
-      Get.snackbar(
-        'Error',
-        errorMessage.value,
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
       return false;
     }
-    if (parkingSpotController.text.isEmpty) {
-      errorMessage.value = 'Parking spot is required';
-      Get.snackbar(
-        'Error',
-        errorMessage.value,
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+    // Parking location selection check
+    if (selectedParkingLocationId.value == null) {
+      errorMessage.value = 'Parking location is required';
       return false;
     }
     return true;
@@ -114,27 +101,36 @@ class ValetCompleteTicketController extends GetxController {
       final ticketModel = ValetCompleteTicketModel(
         ticketId: int.parse(ticketIdController.text),
         note: noteController.text.isEmpty ? null : noteController.text,
-        parkingSpot: int.parse(parkingSpotController.text),
         damage: isDamaged.value,
         licensePlate: licensePlateController.text,
         brand: brandController.text,
         color: colorController.text,
+        parkingLocationId: selectedParkingLocationId.value,
       );
+
+      print('Parking Location ID: ${selectedParkingLocationId.value}');
+      print('Selected Parking Location: ${selectedParkingLocation.value}');
+      print('Parking Location Controller Text: ${parkingLocationNameController.text}');
+      print('Parking Spot Controller Text: ${parkingSpotController.text}');
 
       print('Completing ticket with data: ${ticketModel.toJson()}');
 
       final response = await ApiService.updateTicketStatus(ticketModel);
 
       if (response.statusCode == 200) {
-        clearForm();
-        Get.back();
+        // Show success snackbar
         Get.snackbar(
           'Success',
           'Ticket completed successfully',
           snackPosition: SnackPosition.TOP,
           backgroundColor: Colors.green,
           colorText: Colors.white,
+          duration: const Duration(seconds: 2),
         );
+
+        // Clear form and navigate to valet_home_view directly
+        clearForm();
+        Get.back(closeOverlays: true); // Navigate to home view
       } else {
         throw Exception('Could not complete ticket: ${response.statusCode}');
       }
@@ -156,14 +152,84 @@ class ValetCompleteTicketController extends GetxController {
   // Clear form
   void clearForm() {
     ticketIdController.clear();
+    ticketId.value = ''; // Reactive variable'ı da temizle
     licensePlateController.clear();
     brandController.clear();
     colorController.clear();
     noteController.clear();
-    parkingSpotController.clear();
+    parkingLocationNameController.clear();
+    parkingSpotController.clear(); // Add this to clear the parking spot field
+    selectedParkingLocationId.value = null;
+    selectedParkingLocation.value = null; // Also reset the selected parking location
     isDamaged.value = false;
     selectedImage.value = null;
+    hasOpenTicket.value = false;
     errorMessage.value = '';
+
+    // Pagination değişkenlerini sıfırla
+    currentParkingPage.value = 1;
+    hasMoreParkingData.value = true;
+    isLoadingMoreParking.value = false;
+  }
+
+  // Park yerlerini getirme (pagination ile)
+  Future<void> loadParkingLocations({bool isRefresh = true}) async {
+    try {
+      if (isRefresh) {
+        isLoading.value = true;
+        currentParkingPage.value = 1;
+        hasMoreParkingData.value = true;
+      } else {
+        if (isLoadingMoreParking.value || !hasMoreParkingData.value) return;
+        isLoadingMoreParking.value = true;
+      }
+
+      final apiResponse = await ApiService.getParkingLocations(
+        page: currentParkingPage.value,
+        size: parkingPageSize,
+      );
+
+      final locationsList = apiResponse['items'] as List<Map<String, dynamic>>;
+      final paginationInfo = apiResponse['pagination'] as Map<String, dynamic>;
+
+      if (isRefresh) {
+        parkingLocations.value = locationsList;
+      } else {
+        parkingLocations.addAll(locationsList);
+      }
+
+      // Pagination durumunu kontrol et
+      final currentPageFromApi = paginationInfo['page'] as int;
+      final totalPages = paginationInfo['pages'] as int;
+      hasMoreParkingData.value = currentPageFromApi < totalPages;
+
+      print('Loaded ${locationsList.length} parking locations (page ${currentParkingPage.value})');
+      print('Total parking locations: ${parkingLocations.length}');
+    } catch (e) {
+      print('Error loading parking locations: $e');
+      errorMessage.value = 'Failed to load parking locations';
+    } finally {
+      if (isRefresh) {
+        isLoading.value = false;
+      } else {
+        isLoadingMoreParking.value = false;
+      }
+    }
+  }
+
+  // Daha fazla park yeri yükleme
+  Future<void> loadMoreParkingLocations() async {
+    if (!hasMoreParkingData.value || isLoadingMoreParking.value) return;
+
+    currentParkingPage.value++;
+    await loadParkingLocations(isRefresh: false);
+  }
+
+  // Park yeri seçme
+  void selectParkingLocation(Map<String, dynamic> location) {
+    selectedParkingLocation.value = location;
+    selectedParkingLocationId.value = location['parking_location_id'] as int;
+    parkingLocationNameController.text = location['name'] as String;
   }
 
   void scanQR() {
@@ -199,6 +265,7 @@ class ValetCompleteTicketController extends GetxController {
         controller.dispose();
         Get.back();
         ticketIdController.text = scanData.code!;
+        ticketId.value = scanData.code!; // Reactive variable'ı da güncelle
       }
     });
   }
@@ -220,6 +287,7 @@ class ValetCompleteTicketController extends GetxController {
     customerSurnameController.dispose();
     noteController.dispose();
     parkingSpotController.dispose();
+    parkingLocationNameController.dispose();
     pageController.dispose();
     super.onClose();
   }
@@ -248,34 +316,10 @@ class ValetCompleteTicketController extends GetxController {
         if (aiResponse['color'] != null) {
           colorController.text = aiResponse['color'].toString();
         }
-
-        if (licensePlateController.text.isEmpty && brandController.text.isEmpty && colorController.text.isEmpty) {
-          Get.snackbar(
-            'Warning',
-            'AI analysis returned empty results. Please fill in the information manually.',
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.orange,
-            colorText: Colors.white,
-          );
-        } else {
-          Get.snackbar(
-            'Success',
-            'Vehicle information filled automatically',
-            snackPosition: SnackPosition.TOP,
-            backgroundColor: Colors.green,
-            colorText: Colors.white,
-          );
-        }
       }
     } catch (e) {
       print('AI Processing Error: $e');
-      Get.snackbar(
-        'Error',
-        'Failed to get vehicle information',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      errorMessage.value = 'Failed to get vehicle information';
     } finally {
       isLoading.value = false;
     }
@@ -294,13 +338,8 @@ class ValetCompleteTicketController extends GetxController {
         await processImageWithAI(selectedImage.value!);
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Could not take photo: ${e.toString()}',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      print('Could not take photo: ${e.toString()}');
+      errorMessage.value = 'Could not take photo: ${e.toString()}';
     }
   }
 
@@ -309,7 +348,7 @@ class ValetCompleteTicketController extends GetxController {
     try {
       final XFile? image = await _picker.pickImage(
         source: ImageSource.gallery,
-        imageQuality: 80,
+        imageQuality: 100,
       );
 
       if (image != null) {
@@ -317,13 +356,8 @@ class ValetCompleteTicketController extends GetxController {
         await processImageWithAI(selectedImage.value!);
       }
     } catch (e) {
-      Get.snackbar(
-        'Error',
-        'Could not select photo: ${e.toString()}',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      print('Could not select photo: ${e.toString()}');
+      errorMessage.value = 'Could not select photo: ${e.toString()}';
     }
   }
 
@@ -358,18 +392,12 @@ class ValetCompleteTicketController extends GetxController {
 
   void removeImage() {
     selectedImage.value = null;
-    Get.snackbar(
-      'Success',
-      'Photo removed successfully',
-      snackPosition: SnackPosition.TOP,
-      backgroundColor: Colors.green,
-      colorText: Colors.white,
-    );
   }
 
   void initializeData() {
     // Tüm değerleri temizle
     fetchOpenTicket(); // Açık biletleri getir
+    loadParkingLocations(isRefresh: true); // Park yerlerini baştan getir
   }
 
   @override
@@ -378,17 +406,20 @@ class ValetCompleteTicketController extends GetxController {
     currentPage.value = 0; // Sayfa durumunu sıfırla
     pageController = PageController(initialPage: 0);
     fetchOpenTicket();
+    loadParkingLocations(isRefresh: true);
   }
 
   @override
   void onReady() {
     super.onReady();
     fetchOpenTicket();
+    loadParkingLocations(isRefresh: true);
   }
 
   // View'a her girişte çağrılacak metod
   void refreshTickets() {
     fetchOpenTicket();
+    loadParkingLocations(isRefresh: true);
   }
 
   Future<void> fetchOpenTicket() async {
@@ -398,26 +429,23 @@ class ValetCompleteTicketController extends GetxController {
 
       if (openTickets.isNotEmpty) {
         final ticket = openTickets.first;
-        ticketIdController.text = ticket['ticket_id'].toString();
+        final ticketIdStr = ticket['ticket_id'].toString();
+        ticketIdController.text = ticketIdStr;
+        ticketId.value = ticketIdStr; // Reactive variable'ı da güncelle
+        hasOpenTicket.value = true;
       } else {
-        Get.snackbar(
-          'Warning',
-          'No open tickets found',
-          snackPosition: SnackPosition.TOP,
-          backgroundColor: Colors.orange,
-          colorText: Colors.white,
-        );
-        Get.back();
+        print('No open tickets found');
+        ticketIdController.text = '';
+        ticketId.value = '';
+        hasOpenTicket.value = false;
+        // Get.back(); // Bu satırı kaldırıyoruz, kullanıcı empty state'i görmeli
       }
     } catch (e) {
       print('Fetch Open Ticket Error: $e');
-      Get.snackbar(
-        'Error',
-        'Failed to get open tickets',
-        snackPosition: SnackPosition.TOP,
-        backgroundColor: Colors.red,
-        colorText: Colors.white,
-      );
+      errorMessage.value = 'Failed to get open tickets';
+      ticketIdController.text = '';
+      ticketId.value = '';
+      hasOpenTicket.value = false;
     } finally {
       isLoading.value = false;
     }

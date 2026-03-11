@@ -17,6 +17,10 @@
 	<string>Camera permission is required for QR scanning.</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>This app needs photos access to select photos from gallery</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>Bu uygulama araç park konumunu belirlemek için konum bilgisine ihtiyaç duyar</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>Bu uygulama araç park konumunu belirlemek için konum bilgisine ihtiyaç duyar</string>
 	<key>CFBundleIdentifier</key>
 	<string>$(PRODUCT_BUNDLE_IDENTIFIER)</string>
 	<key>CFBundleInfoDictionaryVersion</key>
@@ -54,5 +58,10 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>fetch</string>
+		<string>remote-notification</string>
+	</array>
 </dict>
 </plist>

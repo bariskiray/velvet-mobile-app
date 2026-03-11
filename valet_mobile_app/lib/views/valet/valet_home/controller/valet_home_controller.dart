@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:math';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'package:valet_mobile_app/api_service/api_service.dart';
 
@@ -11,6 +13,13 @@ class ValetHomeController extends GetxController {
   final isWorking = true.obs;
   final parkingSpots = <Map<String, dynamic>>[].obs;
   final isLoadingSpots = false.obs;
+  final isLoadingLocation = false.obs;
+
+  // Variables for location information
+  final parkingLocation = Rx<Map<String, dynamic>?>(null);
+  final selectedLocation = Rx<LatLng?>(null);
+  final mapController = Rx<GoogleMapController?>(null);
+  final markers = Rx<Set<Marker>>({});
 
   @override
   void onInit() {
@@ -18,8 +27,14 @@ class ValetHomeController extends GetxController {
     checkForAssignments();
   }
 
+  // Set up Google Maps controller
+  void onMapCreated(GoogleMapController controller) {
+    mapController.value = controller;
+  }
+
   Future<void> checkForAssignments() async {
     try {
+      isLoadingLocation.value = true;
       final closedTickets = await ApiService.getClosedTickets();
       print('Closed Tickets: $closedTickets'); // Debug log
 
@@ -27,29 +42,113 @@ class ValetHomeController extends GetxController {
       print('Assigned Ticket: $assignedTicket'); // Debug log
 
       if (assignedTicket != null) {
-        final car = assignedTicket['car'] as Map<String, dynamic>;
-        print('Car Details: $car'); // Debug log
+        // Get parking_location_id value according to new API change
+        final parkingLocationId = assignedTicket['parking_location_id'];
+        print('Parking Location ID: $parkingLocationId'); // Debug log
 
-        carDetails.value = {
-          'ticketId': assignedTicket['ticket_id'].toString(),
-          'brand': car['brand'],
-          'plate': car['license_plate'],
-          'color': car['color'],
-          'location': assignedTicket['parking_spot'].toString(),
-        };
-        print('Set Car Details: ${carDetails.value}'); // Debug log
+        if (parkingLocationId != null) {
+          // Get location details
+          await fetchParkingLocationDetails(parkingLocationId);
 
-        hasNewAssignment.value = true;
-        print('Has New Assignment: ${hasNewAssignment.value}'); // Debug log
+          final car = assignedTicket['car'] as Map<String, dynamic>;
+          print('Car Details: $car'); // Debug log
+
+          // Update car details with location information
+          carDetails.value = {
+            'ticketId': assignedTicket['ticket_id'].toString(),
+            'brand': car['brand'],
+            'plate': car['license_plate'],
+            'color': car['color'],
+            'locationId': parkingLocationId.toString(),
+            'locationName': parkingLocation.value?['name'] ?? 'Unknown',
+          };
+
+          // Show location on map
+          if (parkingLocation.value != null) {
+            showLocationOnMap();
+          }
+
+          hasNewAssignment.value = true;
+        } else {
+          print('No Parking Location ID found');
+          hasNewAssignment.value = false;
+          carDetails.value = null;
+        }
       } else {
         hasNewAssignment.value = false;
         carDetails.value = null;
+        parkingLocation.value = null;
         print('No Assignment Found'); // Debug log
       }
     } catch (e) {
       print('Check Assignments Error: $e');
       hasNewAssignment.value = false;
       carDetails.value = null;
+      parkingLocation.value = null;
+    } finally {
+      isLoadingLocation.value = false;
+    }
+  }
+
+  // Fetch parking location details
+  Future<void> fetchParkingLocationDetails(int locationId) async {
+    try {
+      isLoadingLocation.value = true;
+      parkingLocation.value = await ApiService.getParkingLocationById(locationId);
+      print('Parking Location Details: ${parkingLocation.value}');
+
+      // Convert location data to LatLng object
+      if (parkingLocation.value != null) {
+        final lat = parkingLocation.value!['latitude'] is String
+            ? double.parse(parkingLocation.value!['latitude'])
+            : parkingLocation.value!['latitude'] as double;
+
+        final lng = parkingLocation.value!['longitude'] is String
+            ? double.parse(parkingLocation.value!['longitude'])
+            : parkingLocation.value!['longitude'] as double;
+
+        selectedLocation.value = LatLng(lat, lng);
+        print('Selected Location: ${selectedLocation.value}');
+      }
+    } catch (e) {
+      print('Fetch Parking Location Error: $e');
+      Get.snackbar(
+        'Error',
+        'Failed to get parking location details: $e',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    } finally {
+      isLoadingLocation.value = false;
+    }
+  }
+
+  // Show location on map
+  void showLocationOnMap() {
+    if (selectedLocation.value == null) return;
+
+    markers.value = {
+      Marker(
+        markerId: const MarkerId('parking_location'),
+        position: selectedLocation.value!,
+        infoWindow: InfoWindow(
+          title: parkingLocation.value?['name'] ?? 'Parking Location',
+          snippet: parkingLocation.value?['is_empty'] ? 'Available' : 'Occupied',
+        ),
+        icon: BitmapDescriptor.defaultMarkerWithHue(
+          parkingLocation.value?['is_empty'] ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueRed,
+        ),
+      ),
+    };
+
+    // If map controller is ready, center the location
+    if (mapController.value != null) {
+      mapController.value!.animateCamera(
+        CameraUpdate.newLatLngZoom(
+          selectedLocation.value!,
+          18.0, // Close zoom level
+        ),
+      );
     }
   }
 
@@ -61,6 +160,7 @@ class ValetHomeController extends GetxController {
 
       hasNewAssignment.value = false;
       carDetails.value = null;
+      parkingLocation.value = null;
       Get.back();
       Get.snackbar(
         'Success',
@@ -256,7 +356,7 @@ class ValetHomeController extends GetxController {
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   colors:
-                                      spot['isOccupied'] ? [Colors.red[200]!, Colors.red[400]!] : [Colors.green[200]!, Colors.green[400]!],
+                                      !spot['is_empty'] ? [Colors.red[200]!, Colors.red[400]!] : [Colors.green[200]!, Colors.green[400]!],
                                 ),
                                 borderRadius: BorderRadius.circular(10),
                                 boxShadow: [
@@ -269,7 +369,7 @@ class ValetHomeController extends GetxController {
                               ),
                               child: Center(
                                 child: Text(
-                                  spot['spot'].toString(),
+                                  spot['name'],
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontSize: 16,

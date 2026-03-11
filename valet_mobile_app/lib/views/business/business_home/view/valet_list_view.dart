@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:valet_mobile_app/views/business/business_home/controller/business_home_controller.dart';
 
 class ValetListView extends GetView<BusinessHomeController> {
@@ -27,7 +28,7 @@ class ValetListView extends GetView<BusinessHomeController> {
           IconButton(
             icon: const Icon(Icons.refresh),
             color: Colors.white,
-            onPressed: controller.fetchValets,
+            onPressed: () => controller.fetchValets(),
           ),
         ],
       ),
@@ -36,7 +37,7 @@ class ValetListView extends GetView<BusinessHomeController> {
           return const Center(child: CircularProgressIndicator());
         }
 
-        if (controller.errorMessage.isNotEmpty) {
+        if (controller.errorMessage.isNotEmpty && controller.valets.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
@@ -48,7 +49,7 @@ class ValetListView extends GetView<BusinessHomeController> {
                 ),
                 const SizedBox(height: 16),
                 ElevatedButton(
-                  onPressed: controller.fetchValets,
+                  onPressed: () => controller.fetchValets(),
                   child: const Text('Try Again'),
                 ),
               ],
@@ -58,12 +59,65 @@ class ValetListView extends GetView<BusinessHomeController> {
 
         if (controller.valets.isEmpty) {
           return const Center(
-            child: Text('No valets found'),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  Icons.person_off,
+                  size: 64,
+                  color: Colors.grey,
+                ),
+                SizedBox(height: 16),
+                Text(
+                  'No valets found',
+                  style: TextStyle(
+                    fontSize: 16,
+                    color: Colors.grey,
+                  ),
+                ),
+              ],
+            ),
           );
         }
 
-        return RefreshIndicator(
-          onRefresh: controller.fetchValets,
+        return SmartRefresher(
+          controller: controller.refreshController,
+          onRefresh: () => controller.fetchValets(),
+          onLoading: controller.loadMoreValets,
+          enablePullUp: true,
+          enablePullDown: true,
+          header: const WaterDropHeader(
+            complete: Text('Refreshed'),
+            failed: Text('Refresh failed'),
+            refresh: Text('Refreshing...'),
+          ),
+          footer: CustomFooter(
+            builder: (BuildContext context, LoadStatus? mode) {
+              Widget body;
+              if (mode == LoadStatus.idle) {
+                body = const Text("Pull up to load more");
+              } else if (mode == LoadStatus.loading) {
+                body = const Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    CircularProgressIndicator(),
+                    SizedBox(width: 8),
+                    Text("Loading..."),
+                  ],
+                );
+              } else if (mode == LoadStatus.failed) {
+                body = const Text("Load failed! Tap to retry");
+              } else if (mode == LoadStatus.canLoading) {
+                body = const Text("Release to load");
+              } else {
+                body = const Text("No more data");
+              }
+              return Container(
+                height: 55.0,
+                child: Center(child: body),
+              );
+            },
+          ),
           child: ListView.builder(
             padding: const EdgeInsets.all(16),
             itemCount: controller.valets.length,

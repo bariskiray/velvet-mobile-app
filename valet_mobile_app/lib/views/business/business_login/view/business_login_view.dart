@@ -45,7 +45,7 @@ class _BusinessLoginViewState extends State<BusinessLoginView> {
       if (result['success'] == true) {
         print('Login successful, redirecting to page...');
         if (mounted) {
-          Get.off(() => const BusinessHomeView());
+          Get.off(() => BusinessHomeView());
         }
       } else {
         setState(() {

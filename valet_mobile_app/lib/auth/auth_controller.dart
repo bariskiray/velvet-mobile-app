@@ -17,7 +17,7 @@ class AuthController extends GetxController {
   static const String CREDENTIALS_KEY = 'auth_credentials';
   static const String USER_KEY = 'user_data';
 
-  Future<Map<String, dynamic>> login(String email, String password) async {
+  Future<Map<String, dynamic>> login(String email, String password, {String scope = ''}) async {
     try {
       isLoading.value = true;
 
@@ -26,26 +26,31 @@ class AuthController extends GetxController {
         password: password,
       );
 
-      final response = await ApiService.login(loginRequest);
+      final response = await ApiService.login(loginRequest, scope: scope);
 
       if (response.statusCode == 200) {
-        final credentials = 'Basic ' + base64Encode(utf8.encode('$email:$password'));
+        // JWT token'ı response'dan al
+        final accessToken = response.data['access_token'];
+        final jwtCredential = 'Bearer $accessToken';
 
+        // Business bilgilerini token cevabından elde edebilirsek kullan
+        // Business bilgileri endpoint'i olmadığı için basit bir kullanıcı oluşturuyoruz
         final businessUser = BusinessUser(
           email: email,
-          credentials: credentials,
+          credentials: jwtCredential,
           businessName: email.split('@')[0],
           phoneNumber: '',
-          businessId: response.data['business_id'],
-          id: response.data['id'],
+          businessId: 1, // Varsayılan değer
+          id: 1, // Varsayılan değer
         );
 
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('business_credentials', credentials);
+        await prefs.setString('business_credentials', jwtCredential);
+        await prefs.setString('valet_credentials', jwtCredential);
         await prefs.setString('business_user', jsonEncode(businessUser.toJson()));
 
         currentUser.value = businessUser;
-        _credentials.value = credentials;
+        _credentials.value = jwtCredential;
         isLoggedIn.value = true;
 
         print('Login successful - User Data: ${businessUser.toJson()}');
@@ -94,12 +99,12 @@ class AuthController extends GetxController {
         if (logged) {
           await Get.offAllNamed('/home')?.catchError((error) {
             print('Navigation error: $error');
-            Get.offAll(() => const BusinessHomeView());
+            Get.offAll(() => BusinessHomeView());
           });
         } else {
           await Get.offAllNamed('/login')?.catchError((error) {
             print('Navigation error: $error');
-            Get.offAll(() => const BusinessHomeView());
+            Get.offAll(() => BusinessHomeView());
           });
         }
       } catch (e) {

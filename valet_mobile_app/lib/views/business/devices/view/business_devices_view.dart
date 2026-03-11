@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:valet_mobile_app/auth/auth_controller.dart';
 
 import 'package:valet_mobile_app/views/business/devices/controller/devices_controller.dart';
@@ -28,30 +29,87 @@ class BusinessDevicesView extends StatelessWidget {
   }
 
   Widget _buildBody() {
-    return RefreshIndicator(
-      onRefresh: controller.refreshDevices,
-      child: Container(
-        padding: EdgeInsets.all(16),
-        child: Column(
-          children: [
-            _buildStatisticsSection(),
-            SizedBox(height: 20),
-            Expanded(
-              child: Obx(
-                () => controller.devices.isEmpty
-                    ? Center(
-                        child: Text('No devices added yet'),
-                      )
-                    : ListView.builder(
+    return Container(
+      padding: EdgeInsets.all(16),
+      child: Column(
+        children: [
+          _buildStatisticsSection(),
+          SizedBox(height: 20),
+          Expanded(
+            child: Obx(
+              () => controller.devices.isEmpty && !controller.isLoading.value
+                  ? Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(
+                            Icons.devices,
+                            size: 64,
+                            color: Colors.grey,
+                          ),
+                          SizedBox(height: 16),
+                          Text(
+                            'No devices found',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.grey,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  : SmartRefresher(
+                      controller: controller.refreshController,
+                      onRefresh: () => controller.fetchDevices(),
+                      onLoading: controller.loadMoreDevices,
+                      enablePullUp: true,
+                      enablePullDown: true,
+                      header: const WaterDropHeader(
+                        complete: Text('Refreshed'),
+                        failed: Text('Refresh failed'),
+                        refresh: Text('Refreshing...'),
+                      ),
+                      footer: CustomFooter(
+                        builder: (BuildContext context, LoadStatus? mode) {
+                          Widget body;
+                          if (mode == LoadStatus.idle) {
+                            body = const Text("Pull up to load more");
+                          } else if (mode == LoadStatus.loading) {
+                            body = const Row(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                SizedBox(
+                                  width: 16,
+                                  height: 16,
+                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                ),
+                                SizedBox(width: 8),
+                                Text("Loading..."),
+                              ],
+                            );
+                          } else if (mode == LoadStatus.failed) {
+                            body = const Text("Load failed! Tap to retry");
+                          } else if (mode == LoadStatus.canLoading) {
+                            body = const Text("Release to load");
+                          } else {
+                            body = const Text("No more logs");
+                          }
+                          return Container(
+                            height: 55.0,
+                            child: Center(child: body),
+                          );
+                        },
+                      ),
+                      child: ListView.builder(
                         itemCount: controller.devices.length,
                         itemBuilder: (context, index) {
                           return _buildDeviceCard(controller.devices[index]);
                         },
                       ),
-              ),
+                    ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
@@ -316,7 +374,7 @@ class BusinessDevicesView extends StatelessWidget {
   }
 
   void _showDeviceLogs(Device device) {
-    controller.fetchDeviceLogs(device.deviceId);
+    controller.refreshDeviceLogs(device.deviceId);
 
     Get.dialog(
       AlertDialog(
@@ -330,66 +388,128 @@ class BusinessDevicesView extends StatelessWidget {
             }
 
             if (controller.deviceLogs.isEmpty) {
-              return Center(child: Text('No logs found'));
+              return Center(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.history,
+                      size: 48,
+                      color: Colors.grey,
+                    ),
+                    SizedBox(height: 16),
+                    Text(
+                      'No logs found',
+                      style: TextStyle(
+                        fontSize: 16,
+                        color: Colors.grey,
+                      ),
+                    ),
+                  ],
+                ),
+              );
             }
 
-            return ListView.builder(
-              itemCount: controller.deviceLogs.length,
-              itemBuilder: (context, index) {
-                final log = controller.deviceLogs[index];
-                final assignDate = DateTime.parse(log['assign_date']);
-                final unassignDate = log['unassign_date'] != null ? DateTime.parse(log['unassign_date']) : null;
-
-                return Card(
-                  margin: EdgeInsets.symmetric(vertical: 6),
-                  elevation: 2,
-                  child: Container(
-                    decoration: BoxDecoration(
-                      border: Border(
-                        left: BorderSide(
-                          color: unassignDate == null ? Colors.green : Colors.blue,
-                          width: 4,
-                        ),
-                      ),
-                    ),
-                    child: ListTile(
-                      leading: CircleAvatar(
-                        backgroundColor: unassignDate == null ? Colors.green.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
-                        child: Icon(
-                          unassignDate == null ? Icons.check_circle : Icons.history,
-                          color: unassignDate == null ? Colors.green : Colors.blue,
-                        ),
-                      ),
-                      title: Text(
-                        'Log #${log['log_id']}',
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          color: Colors.black87,
-                        ),
-                      ),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Assigned: ${assignDate.toString().split('.')[0]}'),
-                          if (unassignDate != null) Text('Unassigned: ${unassignDate.toString().split('.')[0]}'),
-                          Text(
-                              'Valet: ${log['valet_name'] != null && log['valet_surname'] != null ? '${log['valet_name']} ${log['valet_surname']}' : 'Valet #${log['valet_id']}'}'),
-                          Text('Status: ${unassignDate == null ? 'Active' : 'Completed'}'),
-                        ],
-                      ),
-                      trailing: Container(
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: unassignDate == null ? Colors.green : Colors.grey,
-                        ),
-                      ),
-                    ),
+            return Obx(() => SmartRefresher(
+                  controller: controller.logsRefreshController,
+                  onRefresh: () => controller.refreshDeviceLogs(device.deviceId),
+                  onLoading: () => controller.loadMoreLogs(device.deviceId),
+                  enablePullUp: controller.hasMoreLogData.value,
+                  enablePullDown: true,
+                  header: const WaterDropHeader(
+                    complete: Text('Refreshed'),
+                    failed: Text('Refresh failed'),
+                    refresh: Text('Refreshing...'),
                   ),
-                );
-              },
-            );
+                  footer: CustomFooter(
+                    builder: (BuildContext context, LoadStatus? mode) {
+                      Widget body;
+                      if (mode == LoadStatus.idle) {
+                        body = const Text("Pull up to load more");
+                      } else if (mode == LoadStatus.loading) {
+                        body = const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            ),
+                            SizedBox(width: 8),
+                            Text("Loading..."),
+                          ],
+                        );
+                      } else if (mode == LoadStatus.failed) {
+                        body = const Text("Load failed! Tap to retry");
+                      } else if (mode == LoadStatus.canLoading) {
+                        body = const Text("Release to load");
+                      } else {
+                        body = const Text("No more logs");
+                      }
+                      return Container(
+                        height: 45.0,
+                        child: Center(child: body),
+                      );
+                    },
+                  ),
+                  child: ListView.builder(
+                    itemCount: controller.deviceLogs.length,
+                    itemBuilder: (context, index) {
+                      final log = controller.deviceLogs[index];
+                      final assignDate = DateTime.parse(log['assign_date']);
+                      final unassignDate = log['unassign_date'] != null ? DateTime.parse(log['unassign_date']) : null;
+
+                      return Card(
+                        margin: EdgeInsets.symmetric(vertical: 6),
+                        elevation: 2,
+                        child: Container(
+                          decoration: BoxDecoration(
+                            border: Border(
+                              left: BorderSide(
+                                color: unassignDate == null ? Colors.green : Colors.blue,
+                                width: 4,
+                              ),
+                            ),
+                          ),
+                          child: ListTile(
+                            leading: CircleAvatar(
+                              backgroundColor: unassignDate == null ? Colors.green.withOpacity(0.1) : Colors.blue.withOpacity(0.1),
+                              child: Icon(
+                                unassignDate == null ? Icons.check_circle : Icons.history,
+                                color: unassignDate == null ? Colors.green : Colors.blue,
+                              ),
+                            ),
+                            title: Text(
+                              'Log #${log['log_id']}',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: Colors.black87,
+                              ),
+                            ),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Assigned: ${assignDate.toString().split('.')[0]}'),
+                                if (unassignDate != null) Text('Unassigned: ${unassignDate.toString().split('.')[0]}'),
+                                Text(
+                                    'Valet: ${log['valet_name'] != null && log['valet_surname'] != null ? '${log['valet_name']} ${log['valet_surname']}' : 'Valet #${log['valet_id']}'}'),
+                                Text('Status: ${unassignDate == null ? 'Active' : 'Completed'}'),
+                              ],
+                            ),
+                            trailing: Container(
+                              width: 10,
+                              height: 10,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: unassignDate == null ? Colors.green : Colors.grey,
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ));
           }),
         ),
         actions: [

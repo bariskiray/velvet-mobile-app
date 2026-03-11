@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart' as dio;
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'dart:io' show Platform;
 import 'package:valet_mobile_app/views/business/business_home/model/valet_response.dart';
 import 'package:valet_mobile_app/views/business/business_login/model/business_register_request.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -22,15 +23,27 @@ const String CREDENTIALS_KEY = 'auth_credentials';
 const String USER_KEY = 'user_data';
 
 class ApiService {
+  // Platform'a göre doğru URL'yi belirle
+  static String getBaseUrl() {
+    if (Platform.isAndroid) {
+      return 'http://10.0.2.2:8000/'; // Android emülatör
+    } else if (Platform.isIOS) {
+      return 'http://localhost:8000/'; // iOS simülatör
+    } else {
+      return 'http://localhost:8000/'; // Diğer platformlar
+    }
+  }
+
   static var _dio = dio.Dio(dio.BaseOptions(
-    baseUrl: 'http://127.0.0.1:8000/',
+    baseUrl: getBaseUrl(),
     connectTimeout: const Duration(seconds: 60),
     receiveTimeout: const Duration(seconds: 60),
     sendTimeout: const Duration(seconds: 60),
   ));
 
   static void initializeInterceptors() {
-    final baseUrl = 'http://127.0.0.1:8000/';
+    final baseUrl = getBaseUrl();
+    print('API Base URL: $baseUrl (${Platform.isAndroid ? "Android" : Platform.isIOS ? "iOS" : "Diğer"})');
 
     _dio = dio.Dio(dio.BaseOptions(
       baseUrl: baseUrl,
@@ -125,15 +138,27 @@ class ApiService {
   }
 
   // Auth endpoints
-  static Future<dio.Response> login(LoginRequest request) async {
+  static Future<dio.Response> login(LoginRequest request, {String scope = ''}) async {
     try {
-      String basicAuth = 'Basic ' + base64Encode(utf8.encode('${request.email}:${request.password}'));
+      // OAuth2 standartlarına uygun olarak parametreleri Map olarak oluştur
+      final Map<String, String> params = {
+        'username': request.email, // username aslında email
+        'password': request.password,
+        'grant_type': 'password',
+        'scope': scope, // business veya valet değeri gelecek
+      };
 
+      // Dio ile direkt olarak form verilerini gönderelim
+      print('Login params: $params');
+
+      // JWT token almak için /api/token endpoint'ine istek at
       final response = await _dio.post(
-        '/api/businesses/login',
+        '/api/token',
+        data: params,
         options: dio.Options(
+          contentType: 'application/x-www-form-urlencoded',
           headers: {
-            'Authorization': basicAuth,
+            'Accept': 'application/json',
           },
         ),
       );
@@ -270,11 +295,13 @@ class ApiService {
         data: {
           'ticket_id': ticket.ticketId,
           'note': ticket.note,
-          'parking_spot': ticket.parkingSpot,
           'damage': ticket.damage,
           'license_plate': ticket.licensePlate,
           'brand': ticket.brand,
           'color': ticket.color,
+          'latitude': ticket.latitude,
+          'longitude': ticket.longitude,
+          'parking_location_id': ticket.parkingLocationId,
         },
         options: dio.Options(
           headers: {
@@ -306,15 +333,33 @@ class ApiService {
     String credentials,
   ) async {
     try {
+      print('====== API SERVICE - VALET LOGIN ======');
       print('Login Request - Email: ${request.email}'); // Debug
-      print('Login Request - Credentials: $credentials'); // Debug
 
+      // OAuth2 standartlarına uygun olarak parametreleri Map olarak oluştur
+      final Map<String, String> params = {
+        'username': request.email, // username aslında email
+        'password': request.password,
+        'grant_type': 'password',
+        'scope': 'valet', // Vale için scope değeri
+      };
+
+      // FCM token varsa, parametrelere ekle
+      if (request.fcmToken != null) {
+        params['fcm_token'] = request.fcmToken!;
+      }
+
+      // Dio ile direkt olarak form verilerini gönderelim
+      print('Login params: $params');
+
+      // JWT token almak için /api/token endpoint'ine istek at
       final response = await _dio.post(
-        '/api/valets/login',
-        data: {'email': request.email, 'password': request.password},
+        '/api/token',
+        data: params,
         options: dio.Options(
+          contentType: 'application/x-www-form-urlencoded',
           headers: {
-            'Authorization': credentials,
+            'Accept': 'application/json',
           },
         ),
       );
@@ -324,27 +369,25 @@ class ApiService {
       print('Response Headers: ${response.headers}'); // Headers
 
       if (response.statusCode == 200) {
-        print('Creating BusinessUser with:'); // Debug
-        print('- Email: ${request.email}');
-        print('- Credentials: $credentials');
-        print('- Business ID from response: ${response.data['business_id']}');
-        print('- Valet ID from response: ${response.data['valet_id']}');
+        // JWT token'ı al ve Bearer formatında kaydet
+        final accessToken = response.data['access_token'];
+        final jwtCredential = 'Bearer $accessToken';
 
         // Business user oluştur
         final businessUser = BusinessUser(
           email: request.email,
-          credentials: credentials,
+          credentials: jwtCredential,
           businessName: request.email.split('@')[0],
-          phoneNumber: response.data['phone_number'] ?? '',
-          businessId: response.data['business_id'] ?? 1,
-          id: response.data['valet_id'] ?? 1,
+          phoneNumber: '',
+          businessId: 1, // Varsayılan değer
+          id: 1, // Varsayılan değer
         );
 
         print('Created BusinessUser: ${businessUser.toJson()}'); // Debug
 
         // SharedPreferences'a kaydet
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('business_credentials', credentials);
+        await prefs.setString('business_credentials', jwtCredential);
         await prefs.setString('business_user', jsonEncode(businessUser.toJson()));
 
         print('Saved to SharedPreferences:'); // Debug
@@ -369,7 +412,10 @@ class ApiService {
     }
   }
 
-  static Future<List<ValetResponse>> getValets() async {
+  static Future<List<ValetResponse>> getValets({
+    int page = 1,
+    int size = 10,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final credentials = prefs.getString('business_credentials');
@@ -380,6 +426,10 @@ class ApiService {
 
       final response = await _dio.get(
         'api/valets',
+        queryParameters: {
+          'page': page,
+          'size': size,
+        },
         options: dio.Options(
           headers: {
             'Authorization': credentials,
@@ -389,12 +439,16 @@ class ApiService {
 
       print('Get Valets Response: ${response.data}');
 
-      if (response.data is List) {
+      // Check for new format with items key
+      if (response.data is Map && response.data['items'] is List) {
+        return (response.data['items'] as List).map<ValetResponse>((json) => ValetResponse.fromJson(json)).toList();
+      }
+      // Check for old format with direct list
+      else if (response.data is List) {
         return (response.data as List).map<ValetResponse>((json) => ValetResponse.fromJson(json)).toList();
       }
-
-      // Eğer data bir liste değilse ve data içinde bir liste varsa
-      if (response.data is Map && response.data['data'] is List) {
+      // Check for format with data key
+      else if (response.data is Map && response.data['data'] is List) {
         return (response.data['data'] as List).map<ValetResponse>((json) => ValetResponse.fromJson(json)).toList();
       }
 
@@ -570,7 +624,10 @@ class ApiService {
     }
   }
 
-  static Future<List<Device>> getDevices() async {
+  static Future<List<Device>> getDevices({
+    int page = 1,
+    int size = 10,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final credentials = prefs.getString('business_credentials');
@@ -581,6 +638,10 @@ class ApiService {
 
       final response = await _dio.get(
         'api/devices',
+        queryParameters: {
+          'page': page,
+          'size': size,
+        },
         options: dio.Options(
           headers: {
             'Authorization': credentials,
@@ -591,9 +652,16 @@ class ApiService {
 
       print('Get Devices Response: ${response.data}');
 
-      if (response.data is List) {
+      // Check for new format with items key
+      if (response.data is Map && response.data['items'] is List) {
+        return (response.data['items'] as List).map<Device>((json) => Device.fromJson(json)).toList();
+      }
+      // Check for old format with direct list
+      else if (response.data is List) {
         return (response.data as List).map<Device>((json) => Device.fromJson(json)).toList();
-      } else if (response.data is Map && response.data['data'] is List) {
+      }
+      // Check for format with data key
+      else if (response.data is Map && response.data['data'] is List) {
         return (response.data['data'] as List).map<Device>((json) => Device.fromJson(json)).toList();
       }
 
@@ -737,7 +805,7 @@ class ApiService {
     }
   }
 
-  static Future<dio.Response> checkoutTicket(int ticketId, int valetId) async {
+  static Future<dio.Response> checkoutTicket(int ticketId, {int? valetId}) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final credentials = prefs.getString('business_credentials');
@@ -746,12 +814,20 @@ class ApiService {
         throw Exception('Authentication credentials not found');
       }
 
+      // Build query parameters, handling null values correctly
+      final Map<String, dynamic> queryParams = {
+        'ticket_id': ticketId,
+      };
+
+      // Only add valet_id to the query params if it's not null
+      // This will make the backend use auto selection
+      if (valetId != null) {
+        queryParams['valet_id'] = valetId;
+      }
+
       final response = await _dio.put(
         'api/tickets/checkout',
-        queryParameters: {
-          'ticket_id': ticketId,
-          'valet_id': valetId,
-        },
+        queryParameters: queryParams,
         options: dio.Options(
           headers: {
             'Authorization': credentials,
@@ -890,8 +966,8 @@ class ApiService {
     String? startDate,
     String? endDate,
     int? progressStatus,
-    int limit = 10,
-    int offset = 0,
+    int page = 1,
+    int size = 10,
   }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -903,8 +979,8 @@ class ApiService {
 
       // Query parametrelerini oluştur
       final Map<String, dynamic> queryParams = {
-        'limit': limit,
-        'offset': offset,
+        'page': page,
+        'size': size,
       };
 
       // Opsiyonel parametreleri ekle
@@ -926,7 +1002,16 @@ class ApiService {
       print('Get Tickets Response: ${response.data}');
 
       if (response.statusCode == 200) {
-        return response.data as List<dynamic>;
+        // API artık {items: [...]} formatında yanıt veriyor
+        if (response.data is Map && response.data['items'] is List) {
+          return response.data['items'] as List<dynamic>;
+        }
+        // Eski format için geriye dönük uyumluluk
+        else if (response.data is List) {
+          return response.data as List<dynamic>;
+        } else {
+          throw Exception('Unexpected response format: ${response.data}');
+        }
       } else {
         throw Exception('Failed to get tickets: ${response.statusCode}');
       }
@@ -1006,7 +1091,12 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> getParkingSpots() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final credentials = prefs.getString('valet_credentials');
+      var credentials = prefs.getString('valet_credentials');
+
+      // Valet credentials yoksa business credentials kullan
+      if (credentials == null) {
+        credentials = prefs.getString('business_credentials');
+      }
 
       if (credentials == null) {
         throw Exception('Authentication credentials not found');
@@ -1025,17 +1115,7 @@ class ApiService {
       print('Parking Spots Response: ${response.data}');
 
       if (response.statusCode == 200) {
-        final availableSpots = List<int>.from(response.data);
-
-        // Create full spots list (1-60)
-        final allSpots = List.generate(
-            60,
-            (index) => {
-                  'spot': index + 1,
-                  'isOccupied': !availableSpots.contains(index + 1), // If not in available list, it means occupied
-                });
-
-        return allSpots;
+        return List<Map<String, dynamic>>.from(response.data);
       } else {
         throw Exception('Failed to get parking spots: ${response.statusCode}');
       }
@@ -1084,7 +1164,11 @@ class ApiService {
     }
   }
 
-  static Future<List<dynamic>> getDeviceLogs(int deviceId) async {
+  static Future<Map<String, dynamic>> getDeviceLogs(
+    int deviceId, {
+    int page = 1,
+    int size = 10,
+  }) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final credentials = prefs.getString('business_credentials');
@@ -1095,6 +1179,10 @@ class ApiService {
 
       final response = await _dio.get(
         'api/devices/$deviceId/logs',
+        queryParameters: {
+          'page': page,
+          'size': size,
+        },
         options: dio.Options(
           headers: {
             'Authorization': credentials,
@@ -1106,12 +1194,532 @@ class ApiService {
       print('Get Device Logs Response: ${response.data}');
 
       if (response.statusCode == 200) {
-        return response.data as List<dynamic>;
+        // Check for new format with items and pagination keys
+        if (response.data is Map && response.data['items'] is List) {
+          return {
+            'items': response.data['items'] as List<dynamic>,
+            'pagination': response.data['pagination'] ??
+                {
+                  'total': (response.data['items'] as List).length,
+                  'page': page,
+                  'size': size,
+                  'pages': 1,
+                },
+          };
+        }
+        // Check for old format with direct list - create pagination info
+        else if (response.data is List) {
+          final items = response.data as List<dynamic>;
+          return {
+            'items': items,
+            'pagination': {
+              'total': items.length,
+              'page': page,
+              'size': size,
+              'pages': items.length < size ? page : page + 1,
+            },
+          };
+        }
+        // Check for format with data key
+        else if (response.data is Map && response.data['data'] is List) {
+          final items = response.data['data'] as List<dynamic>;
+          return {
+            'items': items,
+            'pagination': response.data['pagination'] ??
+                {
+                  'total': items.length,
+                  'page': page,
+                  'size': size,
+                  'pages': items.length < size ? page : page + 1,
+                },
+          };
+        } else {
+          throw Exception('Unexpected response format: ${response.data}');
+        }
       } else {
         throw Exception('Failed to get device logs: ${response.statusCode}');
       }
     } catch (e) {
       print('Get Device Logs Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  // İstatistik endpointleri
+  static Future<int> getDailyVisits(String date) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/statistics/daily-visits',
+        queryParameters: {
+          'date': date,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Daily Visits Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as int;
+      } else {
+        throw Exception('Failed to get daily visits: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Daily Visits Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<List<int>> getPeakHours() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/statistics/peak-hours',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Peak Hours Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return List<int>.from(response.data);
+      } else {
+        throw Exception('Failed to get peak hours: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Peak Hours Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<List<String>> getPeakDays() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/statistics/peak-days',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Peak Days Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return List<String>.from(response.data);
+      } else {
+        throw Exception('Failed to get peak days: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Peak Days Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<double> getMoneyGained(String startDate, String endDate) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/statistics/money-gained',
+        queryParameters: {
+          'start_date': startDate,
+          'end_date': endDate,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Money Gained Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as double;
+      } else {
+        throw Exception('Failed to get money gained: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Money Gained Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, int>> getVisitCountByHours() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/statistics/visit-count-by-hours',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Visit Count By Hours Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        // API bir liste döndürüyor (her indeks bir saati temsil ediyor)
+        if (response.data is List) {
+          final List<dynamic> hoursList = response.data;
+          final Map<String, int> hourlyVisits = {};
+
+          // Listedeki her elemanı saat:ziyaret_sayısı formatında map'e dönüştür
+          for (int i = 0; i < hoursList.length; i++) {
+            hourlyVisits[i.toString()] = hoursList[i] as int;
+          }
+          return hourlyVisits;
+        }
+        // Eğer API formatı değişirse ve bir Map dönerse
+        else if (response.data is Map) {
+          final Map<String, dynamic> data = response.data;
+          final Map<String, int> hourlyVisits = Map<String, int>.from(data.map(
+            (key, value) => MapEntry(key, value as int),
+          ));
+          return hourlyVisits;
+        }
+
+        throw Exception('Beklenmeyen yanıt formatı: visit-count-by-hours');
+      } else {
+        throw Exception('Failed to get visit count by hours: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Visit Count By Hours Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  // Park yeri endpoint'leri
+  static Future<Map<String, dynamic>> getParkingLocations({
+    int page = 1,
+    int size = 10,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/parking-locations',
+        queryParameters: {
+          'page': page,
+          'size': size,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Get Parking Locations Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        List<dynamic> rawList;
+        Map<String, dynamic> paginationInfo = {};
+
+        // Check for new format with items key
+        if (response.data is Map && response.data['items'] is List) {
+          rawList = response.data['items'] as List<dynamic>;
+          // Pagination bilgisini al
+          paginationInfo = {
+            'total': response.data['total'] ?? 0,
+            'page': response.data['page'] ?? page,
+            'size': response.data['size'] ?? size,
+            'pages': response.data['pages'] ?? 1,
+          };
+        }
+        // Check for old format with direct list
+        else if (response.data is List) {
+          rawList = response.data as List<dynamic>;
+          // Eski format için pagination bilgisi yok
+          paginationInfo = {
+            'total': rawList.length,
+            'page': page,
+            'size': size,
+            'pages': 1,
+          };
+        }
+        // Check for format with data key
+        else if (response.data is Map && response.data['data'] is List) {
+          rawList = response.data['data'] as List<dynamic>;
+          // Data format için pagination bilgisi kontrol et
+          paginationInfo = {
+            'total': response.data['total'] ?? rawList.length,
+            'page': response.data['page'] ?? page,
+            'size': response.data['size'] ?? size,
+            'pages': response.data['pages'] ?? 1,
+          };
+        } else {
+          throw Exception('Unexpected response format: ${response.data}');
+        }
+
+        // Her bir öğeyi dönüştürürken alanları düzelt
+        final processedList = rawList.map((item) {
+          final Map<String, dynamic> spot = item as Map<String, dynamic>;
+
+          // API'nin döndüğü parking_location_id'yi, id olarak da ekleyelim
+          // Böylece controller'da hem id hem de parking_location_id ile çalışabilecek
+          if (spot.containsKey('parking_location_id') && !spot.containsKey('id')) {
+            spot['id'] = spot['parking_location_id'];
+          }
+
+          // Debug: ID dönüşümünü kontrol et
+          print('Park yeri dönüştürüldü: ${spot['name']} - ID: ${spot['id']}, Location ID: ${spot['parking_location_id']}');
+
+          return spot;
+        }).toList();
+
+        // Hem veri hem de pagination bilgisini döndür
+        return {
+          'items': processedList,
+          'pagination': paginationInfo,
+        };
+      } else {
+        throw Exception('Failed to get parking locations: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Parking Locations Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> createParkingLocation({
+    required String name,
+    required double latitude,
+    required double longitude,
+    bool is_empty = true,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.post(
+        'api/parking-locations',
+        data: {
+          'name': name,
+          'latitude': latitude,
+          'longitude': longitude,
+          'is_empty': is_empty,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Create Parking Location Response: ${response.data}');
+      return response;
+    } catch (e) {
+      print('Create Parking Location Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<Map<String, dynamic>> getParkingLocationById(int locationId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('valet_credentials') ?? prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/parking-locations/$locationId',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+          },
+        ),
+      );
+
+      if (response.statusCode == 200) {
+        return response.data;
+      } else {
+        throw Exception('Failed to get parking location details');
+      }
+    } catch (e) {
+      print('Get Parking Location Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> updateParkingLocation({
+    required int locationId,
+    required String name,
+    required double latitude,
+    required double longitude,
+    required bool is_empty,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      print('Park yeri güncelleme bilgileri:');
+      print('- Location ID: $locationId (URL\'de kullanılacak)');
+      print('- Name: $name');
+      print('- Latitude: $latitude');
+      print('- Longitude: $longitude');
+      print('- Is Empty: $is_empty');
+
+      final response = await _dio.put(
+        'api/parking-locations/$locationId',
+        data: {
+          'name': name,
+          'is_empty': is_empty,
+          'latitude': latitude,
+          'longitude': longitude,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+            'Content-Type': 'application/json',
+          },
+        ),
+      );
+
+      print('Update Parking Location Response: ${response.data}');
+      return response;
+    } catch (e) {
+      print('Update Parking Location Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  static Future<dio.Response> deleteParkingLocation(int locationId) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('business_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.delete(
+        'api/parking-locations/$locationId',
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Delete Parking Location Response: ${response.data}');
+      return response;
+    } catch (e) {
+      print('Delete Parking Location Error: $e');
+      handleError(e);
+      rethrow;
+    }
+  }
+
+  // En yakın park yerini bul
+  static Future<Map<String, dynamic>> getClosestParkingSpot({
+    required double latitude,
+    required double longitude,
+  }) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final credentials = prefs.getString('valet_credentials');
+
+      if (credentials == null) {
+        throw Exception('Authentication credentials not found');
+      }
+
+      final response = await _dio.get(
+        'api/parking-spots/closest',
+        queryParameters: {
+          'latitude': latitude,
+          'longitude': longitude,
+        },
+        options: dio.Options(
+          headers: {
+            'Authorization': credentials,
+            'Accept': 'application/json',
+          },
+        ),
+      );
+
+      print('Get Closest Parking Spot Response: ${response.data}');
+
+      if (response.statusCode == 200) {
+        return response.data as Map<String, dynamic>;
+      } else {
+        throw Exception('Failed to get closest parking spot: ${response.statusCode}');
+      }
+    } catch (e) {
+      print('Get Closest Parking Spot Error: $e');
       handleError(e);
       rethrow;
     }

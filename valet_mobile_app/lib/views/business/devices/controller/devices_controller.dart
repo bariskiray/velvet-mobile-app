@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import 'package:pull_to_refresh/pull_to_refresh.dart';
 import 'package:valet_mobile_app/views/business/business_home/model/valet_response.dart';
 import 'package:valet_mobile_app/views/business/devices/model/device_model.dart';
 import 'package:valet_mobile_app/api_service/api_service.dart';
@@ -7,10 +8,20 @@ import 'package:valet_mobile_app/api_service/api_service.dart';
 class DevicesController extends GetxController {
   final RxList<Device> devices = <Device>[].obs;
   final RxBool isLoading = false.obs;
+  final RxBool isLoadingMore = false.obs;
+  final RxBool hasMoreData = true.obs;
   final valets = <ValetResponse>[].obs;
   final selectedValetId = RxnInt();
   final RxList deviceLogs = [].obs;
   final RxBool isLoadingLogs = false.obs;
+  final RxBool isLoadingMoreLogs = false.obs;
+  final RxBool hasMoreLogData = true.obs;
+
+  final RefreshController refreshController = RefreshController();
+  final RefreshController logsRefreshController = RefreshController();
+  final int pageSize = 10;
+  final currentPage = 1.obs;
+  final currentLogPage = 1.obs;
 
   @override
   void onInit() {
@@ -23,10 +34,21 @@ class DevicesController extends GetxController {
 
   List<Device> get availableDevices => devices.where((device) => !device.isAssigned).toList();
 
-  Future<void> fetchDevices() async {
-    isLoading.value = true;
+  Future<void> fetchDevices({bool isRefresh = true}) async {
     try {
-      final devicesList = await ApiService.getDevices();
+      if (isRefresh) {
+        isLoading.value = true;
+        currentPage.value = 1;
+        hasMoreData.value = true;
+      } else {
+        if (!hasMoreData.value || isLoadingMore.value) return;
+        isLoadingMore.value = true;
+      }
+
+      final devicesList = await ApiService.getDevices(
+        page: currentPage.value,
+        size: pageSize,
+      );
 
       // Fetch valet info for each device
       for (var device in devicesList) {
@@ -40,8 +62,27 @@ class DevicesController extends GetxController {
         }
       }
 
-      devices.assignAll(devicesList);
+      if (isRefresh) {
+        devices.assignAll(devicesList);
+        refreshController.refreshCompleted();
+      } else {
+        devices.addAll(devicesList);
+        refreshController.loadComplete();
+      }
+
+      // Check if we have fewer items than page size, meaning no more data
+      if (devicesList.length < pageSize) {
+        hasMoreData.value = false;
+        refreshController.loadNoData();
+      } else {
+        currentPage.value++;
+      }
     } catch (e) {
+      if (isRefresh) {
+        refreshController.refreshFailed();
+      } else {
+        refreshController.loadFailed();
+      }
       Get.snackbar(
         'Error',
         'Failed to load devices: $e',
@@ -50,7 +91,13 @@ class DevicesController extends GetxController {
       );
     } finally {
       isLoading.value = false;
+      isLoadingMore.value = false;
     }
+  }
+
+  Future<void> loadMoreDevices() async {
+    if (!hasMoreData.value || isLoadingMore.value) return;
+    await fetchDevices(isRefresh: false);
   }
 
   Future<void> refreshDevices() async {
@@ -234,10 +281,36 @@ class DevicesController extends GetxController {
     }
   }
 
-  Future<void> fetchDeviceLogs(int deviceId) async {
+  Future<void> fetchDeviceLogs(int deviceId, {bool isRefresh = true}) async {
     try {
-      isLoadingLogs.value = true;
-      final logs = await ApiService.getDeviceLogs(deviceId);
+      if (isRefresh) {
+        print('DEBUG: Device logs refresh başlatılıyor - sayfa 1\'e sıfırlanıyor');
+        isLoadingLogs.value = true;
+        currentLogPage.value = 1;
+        hasMoreLogData.value = true;
+      } else {
+        print('DEBUG: Daha fazla log yükleniyor - sayfa: ${currentLogPage.value}');
+        if (!hasMoreLogData.value || isLoadingMoreLogs.value) {
+          print('DEBUG: Daha fazla log yok veya zaten yükleniyor');
+          return;
+        }
+        isLoadingMoreLogs.value = true;
+      }
+
+      print('DEBUG: Device logs API çağrısı yapılıyor - sayfa: ${currentLogPage.value}, boyut: $pageSize');
+
+      // Use new API format with pagination
+      final apiResponse = await ApiService.getDeviceLogs(
+        deviceId,
+        page: currentLogPage.value,
+        size: pageSize,
+      );
+
+      final logs = apiResponse['items'] as List<dynamic>;
+      final paginationInfo = apiResponse['pagination'] as Map<String, dynamic>;
+
+      print('DEBUG: ${logs.length} log alındı');
+      print('DEBUG: Pagination bilgisi: $paginationInfo');
 
       // Her log için vale bilgilerini al
       for (var log in logs) {
@@ -250,8 +323,41 @@ class DevicesController extends GetxController {
         }
       }
 
-      deviceLogs.assignAll(logs);
+      if (isRefresh) {
+        print('DEBUG: Device logs listesi sıfırlanıyor ve ${logs.length} öğe ekleniyor');
+        deviceLogs.assignAll(logs);
+        logsRefreshController.refreshCompleted();
+      } else {
+        print('DEBUG: Mevcut log listesine ${logs.length} öğe ekleniyor');
+        deviceLogs.addAll(logs);
+        logsRefreshController.loadComplete();
+      }
+
+      // Pagination bilgisini kullanarak hasMoreLogData'yı doğru ayarla
+      final currentPageFromApi = paginationInfo['page'] as int;
+      final totalPages = paginationInfo['pages'] as int;
+      final totalItems = paginationInfo['total'] as int;
+
+      if (currentPageFromApi >= totalPages) {
+        print('DEBUG: Son log sayfasına ulaşıldı ($currentPageFromApi >= $totalPages)');
+        hasMoreLogData.value = false;
+        logsRefreshController.loadNoData();
+      } else {
+        print('DEBUG: Daha fazla log sayfası var ($currentPageFromApi < $totalPages)');
+        hasMoreLogData.value = true;
+        currentLogPage.value++;
+      }
+
+      print('DEBUG: Toplam log: $totalItems, Toplam sayfa: $totalPages, Mevcut sayfa: $currentPageFromApi');
     } catch (e) {
+      print('Failed to load device logs: $e');
+      if (isRefresh) {
+        logsRefreshController.refreshFailed();
+        print('DEBUG: Device logs refresh başarısız');
+      } else {
+        logsRefreshController.loadFailed();
+        print('DEBUG: Device logs load more başarısız');
+      }
       Get.snackbar(
         'Error',
         'Failed to load device logs: $e',
@@ -260,6 +366,41 @@ class DevicesController extends GetxController {
       );
     } finally {
       isLoadingLogs.value = false;
+      isLoadingMoreLogs.value = false;
     }
+  }
+
+  Future<void> refreshDeviceLogs(int deviceId) async {
+    print('DEBUG: refreshDeviceLogs çağrıldı');
+    print('DEBUG: Refresh öncesi - currentLogPage: ${currentLogPage.value}, hasMoreLogData: ${hasMoreLogData.value}');
+    print('DEBUG: Refresh öncesi - toplam log: ${deviceLogs.length}');
+
+    currentLogPage.value = 1;
+    hasMoreLogData.value = true;
+
+    // SmartRefresher'ın footer durumunu sıfırla
+    logsRefreshController.resetNoData();
+
+    print('DEBUG: Refresh için ayarlandı - currentLogPage: ${currentLogPage.value}, hasMoreLogData: ${hasMoreLogData.value}');
+
+    await fetchDeviceLogs(deviceId, isRefresh: true);
+  }
+
+  Future<void> loadMoreLogs(int deviceId) async {
+    print('DEBUG: loadMoreLogs çağrıldı - mevcut sayfa: ${currentLogPage.value}');
+    print('DEBUG: hasMoreLogData: ${hasMoreLogData.value}, isLoadingMoreLogs: ${isLoadingMoreLogs.value}');
+
+    if (!hasMoreLogData.value) {
+      print('DEBUG: Daha fazla log yok, loadNoData çağrılıyor');
+      logsRefreshController.loadNoData();
+      return;
+    }
+
+    if (isLoadingMoreLogs.value) {
+      print('DEBUG: Zaten log yükleniyor, çıkılıyor');
+      return;
+    }
+
+    await fetchDeviceLogs(deviceId, isRefresh: false);
   }
 }

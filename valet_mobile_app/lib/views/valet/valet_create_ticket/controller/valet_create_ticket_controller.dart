@@ -5,6 +5,8 @@ import 'package:valet_mobile_app/api_service/api_service.dart';
 import 'package:valet_mobile_app/views/valet/valet_complete_ticket/controller/valet_complete_ticket_controller.dart';
 import 'package:valet_mobile_app/views/valet/valet_complete_ticket/view/valet_complete_ticket_view.dart';
 import 'package:valet_mobile_app/views/valet/valet_create_ticket/model/valet_create_ticket_request.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:valet_mobile_app/views/valet/valet_create_ticket/view/navigation_map_view.dart';
 
 class ValetCreateTicketController extends GetxController {
   // Text editing controller
@@ -159,6 +161,9 @@ class ValetCreateTicketController extends GetxController {
           backgroundColor: Colors.green,
           colorText: Colors.white,
         );
+
+        // Başarılı ticket oluşturma sonrası navigasyon dialog'unu göster
+        _showNavigationDialog();
       } catch (e) {
         print('Create Ticket Error: $e');
         errorMessage.value = 'Failed to create ticket: ${e.toString()}';
@@ -208,6 +213,220 @@ class ValetCreateTicketController extends GetxController {
           colorText: Colors.white,
         );
       }
+    }
+  }
+
+  void _showNavigationDialog() {
+    Get.dialog(
+      Dialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        elevation: 8,
+        child: Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                Colors.blue[50]!,
+                Colors.white,
+              ],
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // İkon ve başlık
+              Container(
+                width: 80,
+                height: 80,
+                decoration: BoxDecoration(
+                  color: Colors.blue[100],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.navigation,
+                  size: 40,
+                  color: Colors.blue[700],
+                ),
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Start Navigation?',
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.grey[800],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              Text(
+                'Would you like to start navigation to the closest parking spot for parking the car?',
+                style: TextStyle(
+                  fontSize: 16,
+                  color: Colors.grey[600],
+                ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 32),
+              // Butonlar
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () => Get.back(),
+                      style: OutlinedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        side: BorderSide(color: Colors.grey[400]!),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: Text(
+                        'No',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.grey[700],
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: () {
+                        Get.back();
+                        _startNavigation();
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.blue[700],
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        elevation: 2,
+                      ),
+                      child: const Text(
+                        'Yes, Start',
+                        style: TextStyle(
+                          fontSize: 16,
+                          color: Colors.white,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+      barrierDismissible: true,
+    );
+  }
+
+  // Navigasyon başlatma işlevi
+  Future<void> _startNavigation() async {
+    try {
+      // Loading göster
+      Get.dialog(
+        const Center(
+          child: CircularProgressIndicator(
+            valueColor: AlwaysStoppedAnimation<Color>(Colors.blue),
+          ),
+        ),
+        barrierDismissible: false,
+      );
+
+      // Konum izni kontrol et
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        Get.back(); // Loading dialog'unu kapat
+        Get.snackbar(
+          'Error',
+          'Location service is turned off. Please enable location service.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          Get.back(); // Loading dialog'unu kapat
+          Get.snackbar(
+            'Error',
+            'Location permission denied.',
+            snackPosition: SnackPosition.TOP,
+            backgroundColor: Colors.red,
+            colorText: Colors.white,
+          );
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        Get.back(); // Loading dialog'unu kapat
+        Get.snackbar(
+          'Error',
+          'Location permission permanently denied. Please enable it from settings.',
+          snackPosition: SnackPosition.TOP,
+          backgroundColor: Colors.red,
+          colorText: Colors.white,
+        );
+        return;
+      }
+
+      // Mevcut konumu al
+      Position position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.high,
+      );
+
+      // En yakın park yerini bul
+      final closestParkingSpot = await ApiService.getClosestParkingSpot(
+        latitude: position.latitude,
+        longitude: position.longitude,
+      );
+
+      Get.back(); // Loading dialog'unu kapat
+
+      // Kendi harita sayfamıza git
+      Get.to(
+        () => NavigationMapView(
+          currentLatitude: position.latitude,
+          currentLongitude: position.longitude,
+          destinationLatitude: closestParkingSpot['latitude'],
+          destinationLongitude: closestParkingSpot['longitude'],
+          destinationName: closestParkingSpot['name'] ?? 'Parking Spot',
+        ),
+        transition: Transition.rightToLeft,
+      );
+
+      Get.snackbar(
+        'Navigation Started',
+        'Closest parking spot: ${closestParkingSpot['name'] ?? 'Unknown'}',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 3),
+      );
+    } catch (e) {
+      Get.back(); // Loading dialog'unu kapat (hata durumunda)
+      print('Navigation Error: $e');
+      Get.snackbar(
+        'Error',
+        'An error occurred while starting navigation: ${e.toString()}',
+        snackPosition: SnackPosition.TOP,
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
     }
   }
 

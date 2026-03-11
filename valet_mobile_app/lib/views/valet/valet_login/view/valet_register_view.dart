@@ -152,7 +152,7 @@ class ValetRegisterView extends StatelessWidget {
           snackPosition: SnackPosition.TOP,
         );
         await Future.delayed(const Duration(seconds: 2));
-        Get.off(() => const BusinessHomeView());
+        Get.off(() => BusinessHomeView());
       } else {
         Get.snackbar(
           'Error',

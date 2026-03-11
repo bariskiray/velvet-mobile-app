@@ -8,6 +8,8 @@ class BusinessCheckoutController extends GetxController {
   final ticketIdController = TextEditingController();
   final RxBool isLoading = false.obs;
   final RxList<ValetResponse> availableValets = <ValetResponse>[].obs;
+  final RxBool useAutoSelect = true.obs;
+  final Rx<ValetResponse?> selectedValet = Rx<ValetResponse?>(null);
 
   QRViewController? qrController;
   final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
@@ -84,7 +86,47 @@ class BusinessCheckoutController extends GetxController {
     }
   }
 
-  Future<void> assignValet(ValetResponse valet) async {
+  Future<void> refreshValets() async {
+    try {
+      final response = await ApiService.getValets();
+
+      // Filter valets where is_busy is false
+      final availableValetsList =
+          List<ValetResponse>.from(response).where((valet) => valet.isBusy == false && valet.isWorking == true).toList();
+
+      availableValets.assignAll(availableValetsList);
+
+      Get.snackbar(
+        'Success',
+        'Valet list refreshed successfully',
+        backgroundColor: Colors.green,
+        colorText: Colors.white,
+        duration: const Duration(seconds: 2),
+      );
+    } catch (e) {
+      Get.snackbar(
+        'Error',
+        'Failed to refresh valet list',
+        backgroundColor: Colors.red,
+        colorText: Colors.white,
+      );
+    }
+  }
+
+  void toggleAutoSelect() {
+    useAutoSelect.value = !useAutoSelect.value;
+    if (useAutoSelect.value) {
+      selectedValet.value = null;
+    }
+  }
+
+  void selectValet(ValetResponse valet) {
+    if (!useAutoSelect.value) {
+      selectedValet.value = valet;
+    }
+  }
+
+  Future<void> assignValet([ValetResponse? valet]) async {
     if (ticketIdController.text.isEmpty) {
       Get.snackbar(
         'Error',
@@ -95,35 +137,77 @@ class BusinessCheckoutController extends GetxController {
       return;
     }
 
+    // Set the valet based on selection mode
+    final ValetResponse? selectedVal = useAutoSelect.value ? null : (valet ?? selectedValet.value);
+    final String valetInfo = selectedVal != null ? 'valet ${selectedVal.valetName}' : 'automatic valet selection';
+
     try {
       await Get.dialog(
         AlertDialog(
-          title: Text('Assignment Confirmation'),
-          content: Text('Do you want to assign the vehicle to valet ${valet.valetName}?'),
+          title: const Text('Assignment Confirmation'),
+          content: Text('Do you want to assign the vehicle to $valetInfo?'),
           actions: [
             TextButton(
               onPressed: () => Get.back(),
-              child: Text('Cancel'),
+              child: const Text('Cancel'),
             ),
             TextButton(
               onPressed: () async {
                 Get.back();
                 isLoading.value = true;
 
-                await ApiService.checkoutTicket(
+                final response = await ApiService.checkoutTicket(
                   int.parse(ticketIdController.text),
-                  valet.valetId,
+                  valetId: selectedVal?.valetId,
                 );
+
+                // Create success message based on selection mode
+                String successMessage = 'Vehicle successfully assigned';
+
+                if (selectedVal != null) {
+                  // Manual selection - we know the valet
+                  successMessage += ' to valet ${selectedVal.valetName} ${selectedVal.valetSurname}';
+                } else if (useAutoSelect.value) {
+                  // Auto selection - get valet info using valet_id from response
+                  try {
+                    if (response.data != null && response.data['valet_id'] != null) {
+                      final valetId = response.data['valet_id'];
+                      final valetDetails = await ApiService.getValetById(valetId);
+
+                      final valetName = valetDetails['valet_name'] ?? '';
+                      final valetSurname = valetDetails['valet_surname'] ?? '';
+
+                      if (valetName.isNotEmpty) {
+                        final fullName = valetSurname.isNotEmpty ? '$valetName $valetSurname' : valetName;
+                        successMessage += ' to valet $fullName';
+                      } else {
+                        successMessage += ' using automatic selection';
+                      }
+                    } else {
+                      successMessage += ' using automatic selection';
+                    }
+                  } catch (e) {
+                    print('Error fetching valet details: $e');
+                    successMessage += ' using automatic selection';
+                  }
+                }
+
+                // Clear the ticket ID field after successful assignment
+                ticketIdController.clear();
+
+                // Refresh the valet list to update availability
+                await fetchAvailableValets();
 
                 Get.back();
                 Get.snackbar(
                   'Success',
-                  'Vehicle successfully assigned to valet ${valet.valetName}',
+                  successMessage,
                   backgroundColor: Colors.green,
                   colorText: Colors.white,
+                  duration: const Duration(seconds: 4),
                 );
               },
-              child: Text('Confirm'),
+              child: const Text('Confirm'),
             ),
           ],
         ),

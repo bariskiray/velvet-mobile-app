@@ -1,23 +1,32 @@
 class ValetLoginRequest {
   final String email;
   final String password;
+  final String? fcmToken;
 
   ValetLoginRequest({
     required this.email,
     required this.password,
+    this.fcmToken,
   });
 
   Map<String, dynamic> toJson() {
-    return {
+    final Map<String, dynamic> data = {
       'email': email,
       'password': password,
     };
+
+    if (fcmToken != null) {
+      data['fcm_token'] = fcmToken;
+    }
+
+    return data;
   }
 
   factory ValetLoginRequest.fromJson(Map<String, dynamic> json) {
     return ValetLoginRequest(
       email: json['email'] ?? '',
       password: json['password'] ?? '',
+      fcmToken: json['fcm_token'],
     );
   }
 }
