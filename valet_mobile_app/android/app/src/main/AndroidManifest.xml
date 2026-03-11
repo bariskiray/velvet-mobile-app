@@ -46,7 +46,7 @@
             
         <meta-data
           android:name="com.google.android.geo.API_KEY"
-          android:value="MAPS_API_KEY_REMOVED" />
+          android:value="${MAPS_API_KEY}" />
             
         <service
             android:name="io.flutter.plugins.firebase.messaging.FlutterFirebaseMessagingService"
